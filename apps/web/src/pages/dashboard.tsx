@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { AppShell } from '@/components/layout/app-shell'
 import { DashboardOverviewCards } from '@/components/dashboard/dashboard-overview-cards'
 import { ThemeDistributionCard } from '@/components/dashboard/theme-distribution-card'
-import { PerformanceInsightsCard } from '@/components/dashboard/performance-insights-card'
+import { TopBottomPerformersCard } from '@/components/dashboard/top-bottom-performers-card'
 import { OverallPerformanceChart } from '@/components/dashboard/overall-performance-chart'
 import { useChannels } from '@/hooks/use-channels'
 import { useProviders } from '@/hooks/use-providers'
@@ -168,15 +168,16 @@ export function DashboardPage() {
           isLoading={isLoadingMetrics}
         />
 
-        {/* Theme Distribution and Insights */}
+        {/* Theme Distribution and Top/Bottom Performers */}
         <div className="grid gap-6 md:grid-cols-2">
           <ThemeDistributionCard
             channels={filteredChannels}
             isLoading={isLoadingChannels}
           />
-          <PerformanceInsightsCard
+          <TopBottomPerformersCard
             channels={filteredChannels}
-            isLoading={isLoadingChannels}
+            period={period}
+            isLoading={isLoadingChannels || isLoadingMetrics}
           />
         </div>
       </div>

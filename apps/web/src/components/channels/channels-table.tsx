@@ -47,6 +47,7 @@ import {
   Trash2,
   Power,
   ArrowUpDown,
+  BarChart3,
 } from 'lucide-react'
 import {
   useDeleteChannel,
@@ -263,6 +264,20 @@ export function ChannelsTable({
               >
                 <Eye className="mr-1 h-3 w-3" />
                 Ver
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              className="h-8 px-2 text-xs"
+            >
+              <Link
+                to="/metrics"
+                search={{ channelId: channel.id }}
+              >
+                <BarChart3 className="mr-1 h-3 w-3" />
+                Métricas
               </Link>
             </Button>
             <Button

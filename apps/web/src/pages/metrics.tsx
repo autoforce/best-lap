@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearch } from '@tanstack/react-router'
 import { AppShell } from '@/components/layout/app-shell'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -24,8 +25,16 @@ const periodLabels: Record<Period, string> = {
 }
 
 export function MetricsPage() {
+  const search = useSearch({ from: '/metrics' }) as { channelId?: string }
   const [selectedChannelId, setSelectedChannelId] = useState<string>('')
   const [period, setPeriod] = useState<Period>('daily')
+
+  // Pre-select channel from URL parameter
+  useEffect(() => {
+    if (search.channelId) {
+      setSelectedChannelId(search.channelId)
+    }
+  }, [search.channelId])
 
   const { data: channels, isLoading: isLoadingChannels } = useChannels()
   const { data: metrics, isLoading: isLoadingMetrics } = useChannelMetrics(

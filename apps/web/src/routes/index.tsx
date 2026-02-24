@@ -38,6 +38,11 @@ const metricsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/metrics',
   component: MetricsPage,
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      channelId: (search.channelId as string) || undefined,
+    }
+  },
 })
 
 // Pages route
