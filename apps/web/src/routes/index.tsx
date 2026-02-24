@@ -6,6 +6,7 @@ import { PagesPage } from '@/pages/pages'
 import { MetricsPage } from '@/pages/metrics'
 import { ComparePage } from '@/pages/compare'
 import { ThemesPage } from '@/pages/themes'
+import { ThemeDetailsPage } from '@/pages/theme-details'
 import { ProvidersPage } from '@/pages/providers'
 
 // Root route
@@ -66,6 +67,12 @@ const themesRoute = createRoute({
   component: ThemesPage,
 })
 
+const themeDetailsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/themes/$theme',
+  component: ThemeDetailsPage,
+})
+
 // Providers route
 const providersRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -82,6 +89,7 @@ const routeTree = rootRoute.addChildren([
   metricsRoute,
   compareRoute,
   themesRoute,
+  themeDetailsRoute,
   providersRoute,
 ])
 

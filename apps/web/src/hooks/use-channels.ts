@@ -32,9 +32,10 @@ export function useChannelsByTheme(theme: string | undefined) {
     queryFn: async () => {
       if (!theme) throw new Error('Theme is required')
       const { data } = await channelsApi.getByTheme(theme)
-      return data
+      return data.channels || []
     },
     enabled: !!theme,
+    staleTime: 0, // Always refetch when theme changes
   })
 }
 

@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button'
 import { ThemeCard } from '@/components/themes/theme-card'
 import { ThemesComparisonChart } from '@/components/themes/themes-comparison-chart'
 import { ThemesTable } from '@/components/themes/themes-table'
-import { ThemeChannelsSection } from '@/components/themes/theme-channels-section'
 import { useChannels } from '@/hooks/use-channels'
 import { metricsApi } from '@/lib/api/endpoints'
 import type { Period } from '@/types/api'
@@ -50,7 +49,6 @@ const THEME_COLORS = [
 export function ThemesPage() {
   const [period, setPeriod] = useState<Period>('daily')
   const [metricKey, setMetricKey] = useState<MetricKey>('avg_score')
-  const [selectedTheme, setSelectedTheme] = useState<string | null>(null)
   const [isOverviewExpanded, setIsOverviewExpanded] = useState(false)
   const [selectedThemesForComparison, setSelectedThemesForComparison] = useState<string[]>([])
   const [comparisonMode, setComparisonMode] = useState(false)
@@ -441,7 +439,6 @@ export function ThemesPage() {
                           value={data.value}
                           label={metricOptions.find((m) => m.value === metricKey)?.label || ''}
                           channelCount={data.channelCount}
-                          onClick={() => setSelectedTheme(data.theme)}
                         />
                       ))}
                 </div>
@@ -511,15 +508,6 @@ export function ThemesPage() {
           <ThemesTable
             data={tableData}
             isLoading={isLoadingChannels || isLoadingMetrics}
-            onThemeClick={(theme) => setSelectedTheme(theme)}
-          />
-        )}
-
-        {/* Selected Theme Channels Section */}
-        {selectedTheme && (
-          <ThemeChannelsSection
-            theme={selectedTheme}
-            onClose={() => setSelectedTheme(null)}
           />
         )}
 

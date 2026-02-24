@@ -23,7 +23,10 @@ export const channelsApi = {
   getById: (channelId: string) =>
     api.get<{ channel: Channel }>(`/channels/${channelId}`),
 
-  getByTheme: (theme: string) => api.get<Channel[]>(`/channels/theme/${theme}`),
+  getByTheme: (theme: string) =>
+    api.get<{ channels_count: number; channels: Channel[] }>(
+      `/channels/theme/${theme}`
+    ),
 
   create: (data: CreateChannelInput) => api.post<Channel>('/channels', data),
 

@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import {
   Table,
   TableBody,
@@ -28,7 +29,6 @@ interface ThemeMetrics {
 interface ThemesTableProps {
   data: ThemeMetrics[]
   isLoading?: boolean
-  onThemeClick?: (theme: string) => void
 }
 
 type SortKey = keyof ThemeMetrics
@@ -40,7 +40,7 @@ function getScoreBadgeVariant(score: number): 'default' | 'secondary' | 'destruc
   return 'destructive'
 }
 
-export function ThemesTable({ data, isLoading, onThemeClick }: ThemesTableProps) {
+export function ThemesTable({ data, isLoading }: ThemesTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('avgScore')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
 
@@ -192,10 +192,15 @@ export function ThemesTable({ data, isLoading, onThemeClick }: ThemesTableProps)
                   <TableRow
                     key={theme.theme}
                     className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => onThemeClick?.(theme.theme)}
                   >
                     <TableCell className="font-medium capitalize">
-                      {theme.theme}
+                      <Link
+                        to="/themes/$theme"
+                        params={{ theme: theme.theme }}
+                        className="block w-full"
+                      >
+                        {theme.theme}
+                      </Link>
                     </TableCell>
                     <TableCell className="text-right">
                       {theme.channelCount}
