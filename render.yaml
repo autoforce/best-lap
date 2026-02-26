@@ -177,7 +177,6 @@ services:
   - type: web
     name: best-lap-dashboard
     runtime: static
-    region: ohio
     buildCommand: pnpm install && pnpm build --filter=@best-lap/web
     staticPublishPath: ./apps/web/dist
 
@@ -206,12 +205,9 @@ services:
         destination: /index.html
 
     envVars:
-      # API URL - automatically linked from API service
+      # API URL - Set manually after API deploys (e.g., https://best-lap-api.onrender.com)
       - key: VITE_API_URL
-        fromService:
-          name: best-lap-api
-          type: web
-          property: url
+        sync: false
 
 # ============================================
 # Databases
