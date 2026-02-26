@@ -1,29 +1,29 @@
-# Render Blueprint - Best Lap (Unified API + Dashboard)
-# Deploys both API (Docker) and Dashboard (Static Site) together
+# Render Blueprint - Best Lap (Full Stack on Render)
+# Deploys ALL services on Render: API, Admin, Metrics Collector, Dashboard, PostgreSQL, Redis
 # Documentation: https://render.com/docs/blueprint-spec
 #
 # Architecture:
-# - Render.com: API + Dashboard (auto-deploy, HTTPS, CDN)
-# - AWS EC2: TimescaleDB + Redis + Admin + Metrics Collector
+# - Render.com: API + Admin + Metrics Collector + Dashboard + PostgreSQL + Redis
+# - All services managed, auto-deploy, HTTPS, high availability
 #
 # Usage:
 # 1. Push this file to GitHub
 # 2. Render Dashboard → New → Blueprint
 # 3. Select repository and this file
-# 4. Configure environment variables (see below)
+# 4. Configure required environment variables (marked with sync: false)
 # 5. Apply
 
 services:
   # ============================================
-  # API Backend (Docker)
+  # API Backend (Node.js)
   # ============================================
   - type: web
     name: best-lap-api
-    env: docker
-    dockerfilePath: ./apps/api/Dockerfile
-    dockerContext: .
-    region: ohio  # us-east-2 (closer to EC2 us-east-1)
-    plan: free    # or "starter" ($7/mês, no cold starts)
+    runtime: node
+    region: ohio  # us-east-2
+    plan: starter  # $7/mês (no cold starts, 512MB RAM)
+    buildCommand: pnpm install && pnpm build --filter=@best-lap/api...
+    startCommand: cd apps/api && pnpm start
     healthCheckPath: /health
 
     envVars:
@@ -33,35 +33,143 @@ services:
       - key: API_PORT
         value: 3333
 
-      # Database (EC2) - MUST UPDATE!
+      # Database (managed by Render)
       - key: DB_HOST
-        sync: false  # Set manually in Render UI
+        fromDatabase:
+          name: best-lap-db
+          property: host
       - key: DB_PORT
-        value: 5432
+        fromDatabase:
+          name: best-lap-db
+          property: port
       - key: DB_USER
-        value: best_lap
+        fromDatabase:
+          name: best-lap-db
+          property: user
       - key: DB_PASSWORD
-        value: best_lap
+        fromDatabase:
+          name: best-lap-db
+          property: password
       - key: DB_NAME
-        value: best_lap_db
+        fromDatabase:
+          name: best-lap-db
+          property: database
 
-      # Redis (EC2) - MUST UPDATE!
+      # Redis (Redis Cloud - external)
       - key: REDIS_HOST
-        sync: false  # Set manually in Render UI
+        sync: false  # Set to Redis Cloud host
       - key: REDIS_PORT
         value: 6379
+      - key: REDIS_PASSWORD
+        sync: false  # Set Redis Cloud password if required
 
       # External APIs
       - key: GOOGLE_API_KEY
-        sync: false  # Optional
+        sync: false  # MUST set manually in Render UI
 
-      # CORS - Set manually or use wildcard for testing
+      # Authentication
+      - key: JWT_SECRET
+        generateValue: true  # Auto-generated secure secret
+      - key: JWT_EXPIRES_IN
+        value: 24h
+
+      # CORS
       - key: CORS_ORIGIN
-        value: "*"  # Change to specific domain after dashboard deploy
+        value: "*"  # Update to specific domain in production
 
       # Swagger
       - key: FORCE_HTTP_SWAGGER
         value: false
+
+  # ============================================
+  # Admin Panel (Bull Board)
+  # ============================================
+  - type: web
+    name: best-lap-admin
+    runtime: node
+    region: ohio
+    plan: free  # OK para admin - cold starts aceitáveis
+    buildCommand: pnpm install && pnpm build --filter=@best-lap/admin...
+    startCommand: cd apps/admin && pnpm start
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      - key: BULL_BOARD_PORT
+        value: 4000
+
+      - key: ADMIN_TOKEN
+        generateValue: true  # Auto-generated secure token
+
+      # Redis (Redis Cloud - external)
+      - key: REDIS_HOST
+        sync: false  # Set to Redis Cloud host
+      - key: REDIS_PORT
+        value: 6379
+      - key: REDIS_PASSWORD
+        sync: false  # Set Redis Cloud password if required
+
+  # ============================================
+  # Metrics Collector (Background Worker)
+  # ============================================
+  - type: worker
+    name: best-lap-metrics-collector
+    runtime: node
+    region: ohio
+    plan: starter  # $7/mês - Workers precisam estar sempre on (cron jobs)
+    buildCommand: pnpm install && pnpm build --filter=@best-lap/metrics-collector...
+    startCommand: cd apps/metrics-collector && pnpm start
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Database (managed by Render)
+      - key: DB_HOST
+        fromDatabase:
+          name: best-lap-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: best-lap-db
+          property: port
+      - key: DB_USER
+        fromDatabase:
+          name: best-lap-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: best-lap-db
+          property: password
+      - key: DB_NAME
+        fromDatabase:
+          name: best-lap-db
+          property: database
+
+      # Redis (Redis Cloud - external)
+      - key: REDIS_HOST
+        sync: false  # Set to Redis Cloud host
+      - key: REDIS_PORT
+        value: 6379
+      - key: REDIS_PASSWORD
+        sync: false  # Set Redis Cloud password if required
+
+      # External APIs
+      - key: GOOGLE_API_KEY
+        sync: false  # MUST set manually in Render UI
+
+      # Cron schedule
+      - key: COLLECT_METRICS_CRON_EXPRESSION
+        value: "0 8,14,20 * * *"  # 8am, 2pm, 8pm daily
+
+      # Worker settings
+      - key: WORKER_CONCURRENCY
+        value: 10
+
+      # Optional seed URL
+      - key: SEED_THEMES_URL
+        sync: false  # Optional
 
   # ============================================
   # Dashboard Frontend (Static Site)
@@ -69,11 +177,9 @@ services:
   - type: web
     name: best-lap-dashboard
     runtime: static
-    env: static
-
-    rootDir: .
-    buildCommand: bash apps/web/render-build.sh
-    staticPublishPath: apps/web/dist
+    region: ohio
+    buildCommand: pnpm install && pnpm build --filter=@best-lap/web
+    staticPublishPath: ./apps/web/dist
 
     # Security headers
     headers:
@@ -89,6 +195,9 @@ services:
       - path: /assets/*
         name: Cache-Control
         value: public, max-age=31536000, immutable
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=0, must-revalidate
 
     # SPA routing
     routes:
@@ -97,17 +206,28 @@ services:
         destination: /index.html
 
     envVars:
-      # API URL - Set manually after API deploy
+      # API URL - automatically linked from API service
       - key: VITE_API_URL
-        sync: false  # Set to https://best-lap-api.onrender.com in Render UI
+        fromService:
+          name: best-lap-api
+          type: web
+          property: url
 
-      - key: NODE_VERSION
-        value: "20"
+# ============================================
+# Databases
+# ============================================
+databases:
+  # PostgreSQL with TimescaleDB extension
+  - name: best-lap-db
+    databaseName: best_lap_db
+    user: best_lap
+    plan: starter  # $7/mês (256MB RAM, 1GB disk, 97 connections)
+    region: ohio
+    postgresMajorVersion: 14
+    ipAllowList: []  # Allow from all Render services
 
-      - key: PNPM_VERSION
-        value: "8.14.0"
-
-      - key: NODE_ENV
-        value: production
-
-# Auto-deploy on push to main branch
+# ============================================
+# Redis
+# ============================================
+# Using Redis Cloud (external) instead of Render Redis
+# Configure REDIS_HOST in each service's environment variables
