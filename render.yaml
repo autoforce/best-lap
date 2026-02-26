@@ -217,7 +217,7 @@ databases:
   - name: best-lap-db
     databaseName: best_lap_db
     user: best_lap
-    plan: starter  # $7/mês (256MB RAM, 1GB disk, 97 connections)
+    plan: basic-256mb  # $6/mês + storage ($0.30/GB) - 256MB RAM, 0.1 CPU
     region: ohio
     postgresMajorVersion: 14
     ipAllowList: []  # Allow from all Render services
