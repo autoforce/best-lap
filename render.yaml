@@ -59,7 +59,7 @@ services:
       - key: REDIS_HOST
         sync: false  # Set to Redis Cloud host
       - key: REDIS_PORT
-        value: 6379
+        sync: false  # Set to Redis Cloud port (usually not 6379)
       - key: REDIS_PASSWORD
         sync: false  # Set Redis Cloud password if required
 
@@ -106,7 +106,7 @@ services:
       - key: REDIS_HOST
         sync: false  # Set to Redis Cloud host
       - key: REDIS_PORT
-        value: 6379
+        sync: false  # Set to Redis Cloud port (usually not 6379)
       - key: REDIS_PASSWORD
         sync: false  # Set Redis Cloud password if required
 
@@ -151,7 +151,7 @@ services:
       - key: REDIS_HOST
         sync: false  # Set to Redis Cloud host
       - key: REDIS_PORT
-        value: 6379
+        sync: false  # Set to Redis Cloud port (usually not 6379)
       - key: REDIS_PASSWORD
         sync: false  # Set Redis Cloud password if required
 
