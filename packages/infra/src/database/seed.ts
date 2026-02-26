@@ -4,6 +4,8 @@ import { connectToDatabase } from "./start-connection"
 import { Channel } from "../typeorm/entities/channel-entity"
 import { Page } from "../typeorm/entities/page-entity"
 import { Provider } from "../typeorm/entities/provider-entity"
+import { User } from "../typeorm/entities/user-entity"
+import * as bcrypt from 'bcryptjs'
 
 // Define interfaces locally to avoid runtime imports
 interface ChannelData {
@@ -38,6 +40,25 @@ export async function seedDb() {
     const channelRepository = dataSource.getRepository(Channel);
     const pageRepository = dataSource.getRepository(Page);
     const providerRepository = dataSource.getRepository(Provider);
+    const userRepository = dataSource.getRepository(User);
+
+    // Seed admin user
+    const adminExists = await userRepository.findOne({
+      where: { email: 'admin@bestlap.com' }
+    });
+
+    if (!adminExists) {
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      const admin = userRepository.create({
+        name: 'Admin',
+        email: 'admin@bestlap.com',
+        password: hashedPassword,
+      });
+      await userRepository.save(admin);
+      console.log('Admin user created: admin@bestlap.com / admin123');
+    } else {
+      console.log('Admin user already exists');
+    }
 
     // Create Autoforce provider
     const autoforceProvider = providerRepository.create({

@@ -6,6 +6,7 @@ import {
   GitCompare,
   Layers,
   Box,
+  Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -39,6 +40,11 @@ const navigation = [
     name: 'Por Tema',
     href: '/themes',
     icon: Layers,
+  },
+  {
+    name: 'Usuários',
+    href: '/users',
+    icon: Users,
   },
 ]
 

@@ -12,6 +12,32 @@ export const swaggerConfig = {
         email: 'desenvolvimento@autoforce.com.br'
       }
     },
+    tags: [
+      {
+        name: 'auth',
+        description: 'Authentication endpoints'
+      },
+      {
+        name: 'users',
+        description: 'User management endpoints'
+      },
+      {
+        name: 'channels',
+        description: 'Channel management endpoints'
+      },
+      {
+        name: 'pages',
+        description: 'Page management endpoints'
+      },
+      {
+        name: 'metrics',
+        description: 'Metrics collection and analysis endpoints'
+      },
+      {
+        name: 'providers',
+        description: 'Provider management endpoints'
+      }
+    ],
     servers: [
       {
         url: 'http://ec2-75-101-196-198.compute-1.amazonaws.com:3333',

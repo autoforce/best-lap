@@ -59,6 +59,8 @@ services:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - CORS_ORIGIN=${CORS_ORIGIN:-*}
       - FORCE_HTTP_SWAGGER=${FORCE_HTTP_SWAGGER:-false}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
     ports:
       - "3333:3333"
     depends_on:

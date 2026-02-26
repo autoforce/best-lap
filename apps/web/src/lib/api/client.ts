@@ -12,11 +12,11 @@ export const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // Add auth token here if needed in the future
-    // const token = localStorage.getItem('token')
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`
-    // }
+    // Add auth token
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
     return config
   },
   (error) => {
@@ -30,10 +30,11 @@ api.interceptors.response.use(
     return response
   },
   (error) => {
-    // Handle common errors
+    // Handle unauthorized
     if (error.response?.status === 401) {
-      // Handle unauthorized
-      console.error('Unauthorized access')
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      window.location.href = '/login'
     }
 
     if (error.response?.status === 404) {

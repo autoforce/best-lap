@@ -21,11 +21,12 @@ const envSchema = z.object({
   SEED_THEMES_URL: z.string().default('https://lucsmac.github.io/autodromo-domains/full_data.json'),
   WORKER_CONCURRENCY: z.coerce.number().default(10),
 
-  // CORS configuration
   CORS_ORIGIN: z.string().default('*'),
 
-  // Swagger configuration
   FORCE_HTTP_SWAGGER: z.coerce.boolean().default(false),
+
+  JWT_SECRET: z.string().min(32, 'JWT secret must be at least 32 characters'),
+  JWT_EXPIRES_IN: z.string().default('24h'),
 })
 
 function validateEnv() {
@@ -53,6 +54,9 @@ function validateEnv() {
     CORS_ORIGIN: process.env.CORS_ORIGIN,
 
     FORCE_HTTP_SWAGGER: process.env.FORCE_HTTP_SWAGGER,
+
+    JWT_SECRET: process.env.JWT_SECRET,
+    JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN,
   }
 
   // Convert empty strings to undefined to match t3-env behavior

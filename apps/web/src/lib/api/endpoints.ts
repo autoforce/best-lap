@@ -13,6 +13,10 @@ import type {
   AverageMetric,
   Period,
   TriggerCollectionResponse,
+  User,
+  LoginCredentials,
+  LoginResponse,
+  CreateUserInput,
 } from '@/types/api'
 
 // Channel endpoints
@@ -106,4 +110,21 @@ export const metricsApi = {
 
   triggerCollectionPage: (channelId: string, pageId: string) =>
     api.post<TriggerCollectionResponse>(`/channels/metrics/${channelId}/pages/${pageId}/collect`),
+}
+
+// Auth endpoints
+export const authApi = {
+  login: (credentials: LoginCredentials) =>
+    api.post<LoginResponse>('/auth/login', credentials),
+
+  me: () => api.get<{ user: User }>('/auth/me'),
+}
+
+// User management endpoints
+export const usersApi = {
+  getAll: () => api.get<{ users: User[] }>('/users'),
+
+  create: (data: CreateUserInput) => api.post<{ user: User }>('/users', data),
+
+  delete: (userId: string) => api.delete(`/users/${userId}`),
 }

@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { DataSource } from 'typeorm';
 import { env } from '@best-lap/env';
 
@@ -7,6 +6,7 @@ import { Channel } from '../typeorm/entities/channel-entity';
 import { Page } from '../typeorm/entities/page-entity';
 import { Metric } from '../typeorm/entities/metric-entity';
 import { Provider } from '../typeorm/entities/provider-entity';
+import { User } from '../typeorm/entities/user-entity';
 
 // Import migrations directly to avoid dynamic loading issues with Node.js v22
 import { CreateChannelTable1732044214596 } from './migration/1732044214596-CreateChannelTable';
@@ -18,6 +18,7 @@ import { AddContinuousAggregatesAndPolicies1732278565824 } from './migration/173
 import { CreateProviderTable1737562800000 } from './migration/1737562800000-CreateProviderTable';
 import { AddProviderIdToPages1737562800001 } from './migration/1737562800001-AddProviderIdToPages';
 import { AddProviderIdToChannels1737562800002 } from './migration/1737562800002-AddProviderIdToChannels';
+import { CreateUsersTable1740000000000 } from './migration/1740000000000-CreateUsersTable';
 
 export const dataSource = new DataSource({
   type: 'postgres',
@@ -30,7 +31,7 @@ export const dataSource = new DataSource({
   logging: true,
   migrationsTransactionMode: 'each',
   // Use direct imports for more reliable entity loading
-  entities: [Channel, Page, Metric, Provider],
+  entities: [Channel, Page, Metric, Provider, User],
   // Use direct imports for migrations to avoid dynamic loading issues
   migrations: [
     CreateChannelTable1732044214596,
@@ -42,5 +43,6 @@ export const dataSource = new DataSource({
     CreateProviderTable1737562800000,
     AddProviderIdToPages1737562800001,
     AddProviderIdToChannels1737562800002,
+    CreateUsersTable1740000000000,
   ]
 });
