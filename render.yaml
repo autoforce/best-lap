@@ -22,7 +22,7 @@ services:
     runtime: node
     region: ohio  # us-east-2
     plan: starter  # $7/mês (no cold starts, 512MB RAM)
-    buildCommand: pnpm install && pnpm build --filter=@best-lap/api...
+    buildCommand: pnpm install --prod=false && pnpm build --filter=@best-lap/api...
     startCommand: cd apps/api && pnpm start
     healthCheckPath: /health
 
@@ -89,7 +89,7 @@ services:
     runtime: node
     region: ohio
     plan: free  # OK para admin - cold starts aceitáveis
-    buildCommand: pnpm install && pnpm build --filter=@best-lap/admin...
+    buildCommand: pnpm install --prod=false && pnpm build --filter=@best-lap/admin...
     startCommand: cd apps/admin && pnpm start
 
     envVars:
@@ -118,7 +118,7 @@ services:
     runtime: node
     region: ohio
     plan: starter  # $7/mês - Workers precisam estar sempre on (cron jobs)
-    buildCommand: pnpm install && pnpm build --filter=@best-lap/metrics-collector...
+    buildCommand: pnpm install --prod=false && pnpm build --filter=@best-lap/metrics-collector...
     startCommand: cd apps/metrics-collector && pnpm start
 
     envVars:
@@ -177,7 +177,7 @@ services:
   - type: web
     name: best-lap-dashboard
     runtime: static
-    buildCommand: pnpm install && pnpm build --filter=@best-lap/web
+    buildCommand: pnpm install --prod=false && pnpm build --filter=@best-lap/web
     staticPublishPath: ./apps/web/dist
 
     # Security headers
