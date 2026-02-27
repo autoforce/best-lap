@@ -14,6 +14,7 @@ const envSchema = z.object({
 
   REDIS_PORT: z.coerce.number().default(6379),
   REDIS_HOST: z.string().default('localhost'),
+  REDIS_PASSWORD: z.string().optional(),
 
   GOOGLE_API_KEY: z.string().optional(),
 
@@ -44,6 +45,7 @@ function validateEnv() {
 
     REDIS_PORT: process.env.REDIS_PORT,
     REDIS_HOST: process.env.REDIS_HOST,
+    REDIS_PASSWORD: process.env.REDIS_PASSWORD,
 
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
 
