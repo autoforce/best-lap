@@ -19,7 +19,7 @@
     "ec2:ps": "docker-compose -f docker-compose.ec2.yml ps",
     "ec2:down": "docker-compose -f docker-compose.ec2.yml down"
   },
-  "devDependencies": {
+  "dependencies": {
     "turbo": "^2.5.4"
   },
   "engines": {
