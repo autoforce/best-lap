@@ -94,12 +94,18 @@ pnpm --filter=@best-lap/metrics-collector start
 Para rodar o sync manualmente (útil para testes):
 
 ```bash
-# Localmente (com hot reload)
+# Localmente (desenvolvimento com hot reload)
 pnpm --filter=@best-lap/metrics-collector sync
 
-# Ou em produção
+# Produção (após build)
+pnpm --filter=@best-lap/metrics-collector start:sync
+
+# Ou diretamente
 cd apps/metrics-collector
 node dist/sync.js
+
+# Docker (EC2 ou local)
+docker exec -it best-lap-metrics-collector node dist/sync.js
 ```
 
 ### Sincronização Manual via API
@@ -342,6 +348,64 @@ Para habilitar via API ou CLI, você precisaria adicionar um parâmetro opcional
 - 🔒 **API Key**: Mantenha `AUTOFORCE_API_KEY` segura, não commite no git
 - 🔒 **Endpoint**: Considere adicionar autenticação JWT ao endpoint `/sync/channels`
 - 🔒 **Rate Limiting**: Considere adicionar rate limiting ao endpoint para evitar abuse
+
+## Deployment
+
+### Render.com (API Backend)
+
+As variáveis de ambiente devem ser configuradas no painel do Render:
+
+1. Acesse o dashboard do serviço `best-lap-api`
+2. Vá em **Environment** > **Environment Variables**
+3. Adicione as variáveis:
+   ```
+   AUTOFORCE_API_URL=https://api.autoforce.com/channels
+   AUTOFORCE_API_KEY=seu-token-aqui
+   SYNC_CHANNELS_CRON=0 2 * * *
+   SYNC_CHANNELS_ENABLED=true
+   ```
+4. Faça redeploy do serviço
+
+**IMPORTANTE**: O metrics-collector rodando no Render irá executar o cron automaticamente. Para fazer sync manual via API, use:
+
+```bash
+curl -X POST https://best-lap-api-tfuu.onrender.com/sync/channels
+```
+
+### EC2 Deployment
+
+Se você está usando deployment no EC2 (via `pnpm docker:deploy:ec2`):
+
+1. Adicione as variáveis no arquivo `.env` **antes do deploy**
+2. Execute o deploy:
+   ```bash
+   pnpm docker:deploy:ec2
+   ```
+
+3. Para rodar sync manual no Docker:
+   ```bash
+   # Via SSH no EC2
+   docker exec -it best-lap-metrics-collector node dist/sync.js
+
+   # Ou via API
+   curl -X POST http://seu-ip-ec2:3333/sync/channels
+   ```
+
+### Verificação Pós-Deploy
+
+Após o deploy, verifique se o sync está funcionando:
+
+```bash
+# Verifique os logs do metrics-collector
+docker logs best-lap-metrics-collector --tail 100 | grep sync
+
+# Ou no Render
+# Acesse: Dashboard > Logs > Filter: "sync"
+
+# Procure por:
+# ✅ "Scheduling channel sync cron: 0 2 * * *"
+# ✅ "Channel synchronization completed successfully"
+```
 
 ## Próximos Passos
 

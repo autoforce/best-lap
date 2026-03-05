@@ -6,6 +6,8 @@
     "dev": "pnpm env:load ts-node --transpile-only src/index.ts",
     "build": "tsup",
     "start": "node dist/index.js",
+    "start:collect": "node dist/collect.js",
+    "start:sync": "node dist/sync.js",
     "collect": "pnpm env:load ts-node --transpile-only src/collect.ts",
     "sync": "pnpm env:load ts-node --transpile-only src/sync.ts",
     "env:load": "dotenv -e ../../.env --"
