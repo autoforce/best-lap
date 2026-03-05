@@ -1,17 +1,19 @@
-# Render Blueprint - Best Lap (Full Stack on Render)
-# Deploys ALL services on Render: API, Admin, Metrics Collector, Dashboard, PostgreSQL, Redis
+# Render Blueprint - Best Lap (Hybrid Architecture)
+# Deploys Backend + Frontend on Render, Database on AWS EC2
 # Documentation: https://render.com/docs/blueprint-spec
 #
 # Architecture:
-# - Render.com: API + Admin + Metrics Collector + Dashboard + PostgreSQL + Redis
-# - All services managed, auto-deploy, HTTPS, high availability
+# - Render.com: API + Admin + Metrics Collector + Dashboard
+# - AWS EC2: TimescaleDB + Redis (self-hosted with full TimescaleDB Community features)
+# - Hybrid approach: Managed services on Render, Database on EC2 for TimescaleDB features
 #
 # Usage:
-# 1. Push this file to GitHub
-# 2. Render Dashboard → New → Blueprint
-# 3. Select repository and this file
-# 4. Configure required environment variables (marked with sync: false)
-# 5. Apply
+# 1. Deploy TimescaleDB on EC2 first: pnpm db:up
+# 2. Configure EC2 security group to allow Render IPs (see RENDER-DEPLOYMENT.md)
+# 3. Push this file to GitHub
+# 4. Render Dashboard → New → Blueprint
+# 5. Configure DB_HOST, DB_PORT, REDIS_HOST to point to EC2
+# 6. Apply
 
 services:
   # ============================================
@@ -33,35 +35,25 @@ services:
       - key: API_PORT
         value: 3333
 
-      # Database (managed by Render)
+      # Database (TimescaleDB on EC2)
       - key: DB_HOST
-        fromDatabase:
-          name: best-lap-db
-          property: host
+        sync: false  # Set to EC2 instance IP or hostname
       - key: DB_PORT
-        fromDatabase:
-          name: best-lap-db
-          property: port
+        value: 5432
       - key: DB_USER
-        fromDatabase:
-          name: best-lap-db
-          property: user
+        value: best_lap
       - key: DB_PASSWORD
-        fromDatabase:
-          name: best-lap-db
-          property: password
+        sync: false  # Set to TimescaleDB password
       - key: DB_NAME
-        fromDatabase:
-          name: best-lap-db
-          property: database
+        value: best_lap_db
 
-      # Redis (Redis Cloud - external)
+      # Redis (Redis Cloud - external free tier)
       - key: REDIS_HOST
-        sync: false  # Set to Redis Cloud host
+        sync: false  # Set to Redis Cloud host (e.g., redis-12345.c1.us-east-2.redislabs.com)
       - key: REDIS_PORT
-        sync: false  # Set to Redis Cloud port (usually not 6379)
+        sync: false  # Set to Redis Cloud port (usually not 6379, e.g., 12345)
       - key: REDIS_PASSWORD
-        sync: false  # Set Redis Cloud password if required
+        sync: false  # Set Redis Cloud password (required)
 
       # External APIs
       - key: GOOGLE_API_KEY
@@ -102,13 +94,13 @@ services:
       - key: ADMIN_TOKEN
         generateValue: true  # Auto-generated secure token
 
-      # Redis (Redis Cloud - external)
+      # Redis (Redis Cloud - external free tier)
       - key: REDIS_HOST
-        sync: false  # Set to Redis Cloud host
+        sync: false  # Set to Redis Cloud host (e.g., redis-12345.c1.us-east-2.redislabs.com)
       - key: REDIS_PORT
-        sync: false  # Set to Redis Cloud port (usually not 6379)
+        sync: false  # Set to Redis Cloud port (usually not 6379, e.g., 12345)
       - key: REDIS_PASSWORD
-        sync: false  # Set Redis Cloud password if required
+        sync: false  # Set Redis Cloud password (required)
 
   # ============================================
   # Metrics Collector (Background Worker)
@@ -125,35 +117,25 @@ services:
       - key: NODE_ENV
         value: production
 
-      # Database (managed by Render)
+      # Database (TimescaleDB on EC2)
       - key: DB_HOST
-        fromDatabase:
-          name: best-lap-db
-          property: host
+        sync: false  # Set to EC2 instance IP or hostname
       - key: DB_PORT
-        fromDatabase:
-          name: best-lap-db
-          property: port
+        value: 5432
       - key: DB_USER
-        fromDatabase:
-          name: best-lap-db
-          property: user
+        value: best_lap
       - key: DB_PASSWORD
-        fromDatabase:
-          name: best-lap-db
-          property: password
+        sync: false  # Set to TimescaleDB password
       - key: DB_NAME
-        fromDatabase:
-          name: best-lap-db
-          property: database
+        value: best_lap_db
 
-      # Redis (Redis Cloud - external)
+      # Redis (Redis Cloud - external free tier)
       - key: REDIS_HOST
-        sync: false  # Set to Redis Cloud host
+        sync: false  # Set to Redis Cloud host (e.g., redis-12345.c1.us-east-2.redislabs.com)
       - key: REDIS_PORT
-        sync: false  # Set to Redis Cloud port (usually not 6379)
+        sync: false  # Set to Redis Cloud port (usually not 6379, e.g., 12345)
       - key: REDIS_PASSWORD
-        sync: false  # Set Redis Cloud password if required
+        sync: false  # Set Redis Cloud password (required)
 
       # External APIs
       - key: GOOGLE_API_KEY
@@ -210,20 +192,24 @@ services:
         sync: false
 
 # ============================================
-# Databases
+# Infrastructure Notes
 # ============================================
-databases:
-  # PostgreSQL with TimescaleDB extension
-  - name: best-lap-db
-    databaseName: best_lap_db
-    user: best_lap
-    plan: basic-256mb  # $6/mês + storage ($0.30/GB) - 256MB RAM, 0.1 CPU
-    region: ohio
-    postgresMajorVersion: 14
-    ipAllowList: []  # Allow from all Render services
-
-# ============================================
-# Redis
-# ============================================
-# Using Redis Cloud (external) instead of Render Redis
-# Configure REDIS_HOST in each service's environment variables
+# Database: TimescaleDB on AWS EC2
+# - Full TimescaleDB Community features (continuous aggregates, compression, retention)
+# - Better performance for time-series data (3-5x faster than standard PostgreSQL)
+# - Cost: ~$17/mês (t3.small)
+#
+# Redis: Redis Cloud (external free tier)
+# - 30MB storage, 30 connections
+# - Cost: FREE
+# - Setup: https://redis.com/try-free/
+#
+# Total Infrastructure Cost: ~$17/mês (EC2 only)
+# Total Render Cost: $14/mês (API $7 + Metrics Collector $7 + Admin FREE + Dashboard FREE)
+# TOTAL: ~$31/mês
+#
+# Security Setup Required:
+# 1. Configure EC2 Security Group to allow port 5432 from Render outbound IPs
+# 2. Use EC2 Elastic IP or hostname for DB_HOST
+# 3. Setup Redis Cloud and get connection details
+# 4. Use strong passwords for DB_PASSWORD and REDIS_PASSWORD

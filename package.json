@@ -15,6 +15,10 @@
     "infra:up": "docker-compose up -d timescaledb redis",
     "infra:down": "docker-compose down",
     "infra:logs": "docker-compose logs -f timescaledb redis",
+    "db:up": "docker-compose -f docker-compose.db.yml up -d",
+    "db:down": "docker-compose -f docker-compose.db.yml down",
+    "db:logs": "docker-compose -f docker-compose.db.yml logs -f",
+    "db:psql": "docker-compose -f docker-compose.db.yml exec timescaledb psql -U best_lap -d best_lap_db",
     "ec2:logs": "docker-compose -f docker-compose.ec2.yml logs -f",
     "ec2:ps": "docker-compose -f docker-compose.ec2.yml ps",
     "ec2:down": "docker-compose -f docker-compose.ec2.yml down"

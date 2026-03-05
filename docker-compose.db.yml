@@ -1,0 +1,43 @@
+# Docker Compose for TimescaleDB Only (EC2 Deployment)
+# Runs ONLY TimescaleDB with full Community features (continuous aggregates, compression, retention)
+#
+# Architecture:
+#   - EC2: TimescaleDB (this file) - ~$17/mês
+#   - Redis Cloud: Redis (external, free tier)
+#   - Render: API + Admin + Metrics Collector + Dashboard - $14/mês
+#   Total: ~$31/mês
+#
+# Usage:
+#   docker-compose -f docker-compose.db.yml up -d    # Start
+#   docker-compose -f docker-compose.db.yml down     # Stop
+#   docker-compose -f docker-compose.db.yml logs -f  # View logs
+#   docker-compose -f docker-compose.db.yml exec timescaledb psql -U best_lap -d best_lap_db  # Connect to DB
+
+services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    container_name: timescaledb
+    environment:
+      POSTGRES_USER: ${DB_USER:-best_lap}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-best_lap}
+      POSTGRES_DB: ${DB_NAME:-best_lap_db}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-best_lap} -d ${DB_NAME:-best_lap_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    # Memory and CPU limits for t3.small (2GB RAM, 2 vCPU)
+    # Leaving ~500MB for OS
+    mem_limit: 1536m
+    memswap_limit: 1536m
+    cpus: 1.5
+
+volumes:
+  timescaledb_data:
+    driver: local
