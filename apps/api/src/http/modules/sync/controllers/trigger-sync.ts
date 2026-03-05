@@ -1,7 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { env } from '@best-lap/env'
-import { AutoforceApiService } from '@best-lap/core/services/autoforce-api-service'
-import { SyncChannelsUseCase } from '@best-lap/core/usecases/sync/sync-channels-use-case'
+import { AutoforceApiService, SyncChannelsUseCase } from '@best-lap/core'
 import { TypeormChannelsRepository } from '@best-lap/infra/typeorm/repositories/typeorm-channels-repository'
 import { TypeormPagesRepository } from '@best-lap/infra/typeorm/repositories/typeorm-pages-repository'
 
