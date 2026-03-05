@@ -19,6 +19,7 @@
     "@best-lap/eslint-config": "workspace:*",
     "@best-lap/prettier": "workspace:*",
     "@best-lap/tsconfig": "workspace:*",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^24.0.13",
     "tsx": "^4.20.3",
     "tsup": "^8.3.5"
@@ -33,6 +34,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "bullmq": "^5.56.4",
     "dotenv": "^16.4.5",
     "dotenv-cli": "^8.0.0",
