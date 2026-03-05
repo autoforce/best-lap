@@ -22,6 +22,12 @@ const envSchema = z.object({
   SEED_THEMES_URL: z.string().default('https://lucsmac.github.io/autodromo-domains/full_data.json'),
   WORKER_CONCURRENCY: z.coerce.number().default(10),
 
+  // Autoforce API Integration
+  AUTOFORCE_API_URL: z.string().url().optional(),
+  AUTOFORCE_API_KEY: z.string().optional(),
+  SYNC_CHANNELS_CRON: z.coerce.string().default('0 2 * * *'), // 2AM daily
+  SYNC_CHANNELS_ENABLED: z.coerce.boolean().default(true),
+
   CORS_ORIGIN: z.string().default('*'),
 
   FORCE_HTTP_SWAGGER: z.coerce.boolean().default(false),
@@ -52,6 +58,11 @@ function validateEnv() {
     COLLECT_METRICS_CRON_EXPRESSION: process.env.COLLECT_METRICS_CRON_EXPRESSION,
     SEED_THEMES_URL: process.env.SEED_THEMES_URL,
     WORKER_CONCURRENCY: process.env.WORKER_CONCURRENCY,
+
+    AUTOFORCE_API_URL: process.env.AUTOFORCE_API_URL,
+    AUTOFORCE_API_KEY: process.env.AUTOFORCE_API_KEY,
+    SYNC_CHANNELS_CRON: process.env.SYNC_CHANNELS_CRON,
+    SYNC_CHANNELS_ENABLED: process.env.SYNC_CHANNELS_ENABLED,
 
     CORS_ORIGIN: process.env.CORS_ORIGIN,
 

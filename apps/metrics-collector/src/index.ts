@@ -1,5 +1,6 @@
 import { metricsWorkersConfig } from "./config/queues/workers-config";
 import { collectMetricsCron } from "./jobs/cron/collect-metrics-cron";
+import { syncChannelsCron } from "./jobs/cron/sync-channels-cron";
 import { connectToDatabase, setupWorkers } from "@best-lap/infra";
 
 async function initCollectMetricsCron() {
@@ -13,6 +14,7 @@ async function initCollectMetricsCron() {
   try {
     setupWorkers(metricsWorkersConfig);
     collectMetricsCron();
+    syncChannelsCron();
   } catch (err) {
     console.log("error during executino: ", err)
   }

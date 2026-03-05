@@ -5,6 +5,7 @@ import { pagesRoutes } from "./modules/pages/routes"
 import { providersRoutes } from "./modules/providers/routes"
 import { authRoutes } from "./modules/auth/routes"
 import { usersRoutes } from "./modules/users/routes"
+import { syncRoutes } from "./modules/sync/routes"
 
 export async function appRoutes(server: FastifyInstance) {
   // Health check endpoint
@@ -34,5 +35,9 @@ export async function appRoutes(server: FastifyInstance) {
 
   server.register(providersRoutes, {
     prefix: 'providers',
+  })
+
+  server.register(syncRoutes, {
+    prefix: 'sync',
   })
 }
