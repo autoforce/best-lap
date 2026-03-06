@@ -16,7 +16,7 @@ export class CollectPageMetricsService {
 
     if (!response.ok) {
       const responseData = await response.json()
-      throw new Error(`Network response was not ok, status: ${response.status} - Data: ${responseData}`);
+      throw new Error(`Network response was not ok, status: ${response.status} - Data: ${JSON.stringify(responseData)}`);
     }
 
     const responseData = await response.json() as PerformanceResult
