@@ -36,6 +36,6 @@ export class CollectPageMetricsService {
       ...metrics,
     }
 
-    this.metricsRepository.create(data)
+    await this.metricsRepository.create(data)
   }
 }
