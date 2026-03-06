@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, useQueries } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { metricsApi } from '@/lib/api/endpoints'
 import type { Period, AverageMetric } from '@/types/api'
 import { toast } from '@/hooks/use-toast'
@@ -67,33 +67,50 @@ export function useProviderMetrics(providerId: string | undefined, period: Perio
   })
 }
 
-// Hook to fetch metrics for multiple channels and aggregate them
-export function useMultipleChannelsMetrics(channelIds: string[], period: Period) {
-  const queries = useQueries({
-    queries: channelIds.map((channelId) => ({
-      queryKey: [METRICS_QUERY_KEY, 'channel', channelId, period],
-      queryFn: async () => {
-        const { data } = await metricsApi.getChannelAverage(channelId, period)
-        return data.metrics || []
-      },
-      enabled: channelIds.length > 0,
-    })),
+// Hook to fetch all channels metrics grouped (optimized - single request)
+export function useAllChannelsMetricsGrouped(period: Period) {
+  return useQuery({
+    queryKey: [METRICS_QUERY_KEY, 'all-channels-grouped', period],
+    queryFn: async () => {
+      const { data } = await metricsApi.getAllGroupedByChannel(period)
+      return data.metrics || []
+    },
   })
+}
+
+// Hook to fetch metrics for multiple channels and aggregate them (OPTIMIZED)
+// Now uses a single request to get all channels, then filters and aggregates client-side
+export function useMultipleChannelsMetrics(channelIds: string[], period: Period) {
+  const { data: allChannelsMetrics, isLoading, isError } = useAllChannelsMetricsGrouped(period)
 
   const aggregatedMetrics = useMemo(() => {
-    // Check if all queries are loaded
-    const allLoaded = queries.every((q) => !q.isLoading)
-    if (!allLoaded || queries.length === 0) return []
+    if (isLoading || !allChannelsMetrics || channelIds.length === 0) return []
 
-    // Get all metrics from all channels
-    const allMetrics = queries.flatMap((q) => q.data || [])
-    if (allMetrics.length === 0) return []
+    // Filter metrics for the selected channels only
+    const filteredMetrics = allChannelsMetrics.filter(metric =>
+      channelIds.includes(metric.channel_id)
+    )
+
+    if (filteredMetrics.length === 0) return []
 
     // Group metrics by period_start
     const metricsByPeriod = new Map<string, AverageMetric[]>()
-    allMetrics.forEach((metric) => {
+    filteredMetrics.forEach((metric) => {
       const existing = metricsByPeriod.get(metric.period_start) || []
-      metricsByPeriod.set(metric.period_start, [...existing, metric])
+      metricsByPeriod.set(metric.period_start, [
+        ...existing,
+        {
+          period_start: metric.period_start,
+          avg_score: metric.avg_score,
+          avg_seo: metric.avg_seo,
+          avg_response_time: metric.avg_response_time,
+          avg_fcp: metric.avg_fcp,
+          avg_si: metric.avg_si,
+          avg_lcp: metric.avg_lcp,
+          avg_tbt: metric.avg_tbt,
+          avg_cls: metric.avg_cls,
+        }
+      ])
     })
 
     // Aggregate metrics for each period
@@ -122,12 +139,12 @@ export function useMultipleChannelsMetrics(channelIds: string[], period: Period)
 
     // Sort by period_start
     return aggregated.sort((a, b) => a.period_start.localeCompare(b.period_start))
-  }, [queries])
+  }, [allChannelsMetrics, channelIds, isLoading])
 
   return {
     data: aggregatedMetrics,
-    isLoading: queries.some((q) => q.isLoading),
-    isError: queries.some((q) => q.isError),
+    isLoading,
+    isError,
   }
 }
 

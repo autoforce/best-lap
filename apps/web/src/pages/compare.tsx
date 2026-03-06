@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react'
-import { useQueries } from '@tanstack/react-query'
 import { AppShell } from '@/components/layout/app-shell'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -16,7 +15,7 @@ import { ChannelsComparisonChart } from '@/components/compare/channels-compariso
 import { ComparisonChannelCard } from '@/components/compare/comparison-channel-card'
 import { ComparisonTable } from '@/components/compare/comparison-table'
 import { useChannels } from '@/hooks/use-channels'
-import { metricsApi } from '@/lib/api/endpoints'
+import { useAllChannelsMetricsGrouped } from '@/hooks/use-metrics'
 import type { Period } from '@/types/api'
 import { ArrowLeftRight, X } from 'lucide-react'
 
@@ -55,19 +54,8 @@ export function ComparePage() {
 
   const { data: channels, isLoading: isLoadingChannels } = useChannels()
 
-  // Fetch metrics for selected channels using useQueries
-  const channelMetricsQueries = useQueries({
-    queries: selectedChannelIds.map((channelId) => ({
-      queryKey: ['metrics', 'channel', channelId, period],
-      queryFn: async () => {
-        const { data } = await metricsApi.getChannelAverage(channelId, period)
-        return { channelId, metrics: data.metrics || [] }
-      },
-      enabled: !!channelId,
-    })),
-  })
-
-  const isLoadingMetrics = channelMetricsQueries.some((q) => q.isLoading)
+  // Fetch metrics for ALL channels using optimized endpoint (single request)
+  const { data: allChannelsMetrics, isLoading: isLoadingMetrics } = useAllChannelsMetricsGrouped(period)
 
   // Available channels for selection (not already selected)
   const availableChannels = useMemo(() => {
@@ -91,18 +79,34 @@ export function ComparePage() {
 
   // Prepare data for chart
   const chartData = useMemo(() => {
+    if (!allChannelsMetrics) return []
+
     return selectedChannelIds.map((channelId, index) => {
       const channel = channels?.find((c) => c.id === channelId)
-      const queryResult = channelMetricsQueries[index]
-      const metrics = queryResult?.data?.metrics || []
+
+      // Filter metrics for this specific channel and convert to AverageMetric format
+      const channelMetrics = allChannelsMetrics
+        .filter(m => m.channel_id === channelId)
+        .map(m => ({
+          period_start: m.period_start,
+          avg_score: m.avg_score,
+          avg_seo: m.avg_seo,
+          avg_response_time: m.avg_response_time,
+          avg_fcp: m.avg_fcp,
+          avg_si: m.avg_si,
+          avg_lcp: m.avg_lcp,
+          avg_tbt: m.avg_tbt,
+          avg_cls: m.avg_cls,
+        }))
+
       return {
         channelId,
         channelName: channel?.name || 'Unknown',
-        metrics,
+        metrics: channelMetrics,
         color: CHANNEL_COLORS[index % CHANNEL_COLORS.length],
       }
     })
-  }, [selectedChannelIds, channels, channelMetricsQueries])
+  }, [selectedChannelIds, channels, allChannelsMetrics])
 
   // Prepare data for cards and table
   const comparisonData = useMemo(() => {

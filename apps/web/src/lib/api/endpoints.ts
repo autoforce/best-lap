@@ -11,6 +11,7 @@ import type {
   UpdatePageInput,
   Metric,
   AverageMetric,
+  ChannelMetricGrouped,
   Period,
   TriggerCollectionResponse,
   User,
@@ -90,6 +91,11 @@ export const metricsApi = {
   getAllAverage: (period: Period) =>
     api.get<{ metrics: AverageMetric[] }>(
       `/channels/metrics/average/${period}`
+    ),
+
+  getAllGroupedByChannel: (period: Period) =>
+    api.get<{ metrics: ChannelMetricGrouped[] }>(
+      `/channels/metrics/grouped/${period}`
     ),
 
   getThemeAverage: (theme: string, period: Period) =>

@@ -8,13 +8,7 @@ import { importChannelsDocs } from './docs/import-channels-docs'
 export async function syncRoutes(server: FastifyInstance) {
   const app = server.withTypeProvider<ZodTypeProvider>()
 
-  /**
-   * POST /sync/channels - Manually trigger channel synchronization from Autoforce API
-   */
   app.post('/channels', { schema: triggerSyncDocs }, triggerSync)
 
-  /**
-   * POST /sync/channels/import - Import channels directly from request body
-   */
   app.post('/channels/import', { schema: importChannelsDocs }, importChannels)
 }

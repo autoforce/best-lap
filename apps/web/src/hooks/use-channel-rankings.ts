@@ -1,4 +1,4 @@
-import { useQueries } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { metricsApi } from '@/lib/api/endpoints'
 import type { Period, AverageMetric, Channel } from '@/types/api'
 import { useMemo } from 'react'
@@ -25,37 +25,54 @@ export function useChannelRankings(
   channels: Channel[],
   period: Period
 ): ChannelRankings {
-  // Fetch metrics for all channels
-  const queries = useQueries({
-    queries: channels.map((channel) => ({
-      queryKey: [METRICS_QUERY_KEY, 'channel', channel.id, period],
-      queryFn: async () => {
-        const { data } = await metricsApi.getChannelAverage(channel.id, period)
-        return {
-          channelId: channel.id,
-          channelName: channel.name,
-          metrics: data.metrics || [],
-        }
-      },
-      enabled: channels.length > 0,
-    })),
+  // Fetch metrics for all channels in a single request
+  const { data, isLoading, isError } = useQuery({
+    queryKey: [METRICS_QUERY_KEY, 'all-channels-grouped', period],
+    queryFn: async () => {
+      const { data } = await metricsApi.getAllGroupedByChannel(period)
+      return data.metrics
+    },
+    enabled: channels.length > 0,
   })
 
   const rankings = useMemo(() => {
-    // Check if all queries are loaded
-    const allLoaded = queries.every((q) => !q.isLoading)
-    const anyError = queries.some((q) => q.isError)
-    const isLoading = queries.some((q) => q.isLoading)
-
-    if (!allLoaded || queries.length === 0) {
+    if (isLoading || !data) {
       return {
         topPerformers: [],
         bottomPerformers: [],
         overallAverage: 0,
         isLoading,
-        isError: anyError,
+        isError,
       }
     }
+
+    // Group metrics by channel and get latest metric for each
+    const channelMetricsMap = new Map<string, {
+      channelId: string
+      channelName: string
+      metrics: AverageMetric[]
+    }>()
+
+    data.forEach((metric) => {
+      if (!channelMetricsMap.has(metric.channel_id)) {
+        channelMetricsMap.set(metric.channel_id, {
+          channelId: metric.channel_id,
+          channelName: metric.channel_name,
+          metrics: [],
+        })
+      }
+      channelMetricsMap.get(metric.channel_id)!.metrics.push({
+        period_start: metric.period_start,
+        avg_score: metric.avg_score,
+        avg_seo: metric.avg_seo,
+        avg_response_time: metric.avg_response_time,
+        avg_fcp: metric.avg_fcp,
+        avg_si: metric.avg_si,
+        avg_lcp: metric.avg_lcp,
+        avg_tbt: metric.avg_tbt,
+        avg_cls: metric.avg_cls,
+      })
+    })
 
     // Extract latest metric for each channel
     const channelPerformances: Array<{
@@ -65,12 +82,7 @@ export function useChannelRankings(
       latestMetric: AverageMetric | null
     }> = []
 
-    queries.forEach((query) => {
-      if (!query.data) return
-
-      const { channelId, channelName, metrics } = query.data
-
-      // Get latest metric (most recent period_start)
+    channelMetricsMap.forEach(({ channelId, channelName, metrics }) => {
       if (metrics.length === 0) return
 
       const sortedMetrics = [...metrics].sort((a, b) =>
@@ -93,7 +105,7 @@ export function useChannelRankings(
         bottomPerformers: [],
         overallAverage: 0,
         isLoading: false,
-        isError: anyError,
+        isError,
       }
     }
 
@@ -136,9 +148,9 @@ export function useChannelRankings(
       bottomPerformers,
       overallAverage,
       isLoading: false,
-      isError: anyError,
+      isError,
     }
-  }, [queries])
+  }, [data, isLoading, isError])
 
   return rankings
 }

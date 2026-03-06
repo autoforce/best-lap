@@ -114,6 +114,20 @@ export interface AverageMetric {
   avg_cls: number
 }
 
+export interface ChannelMetricGrouped {
+  channel_id: string
+  channel_name: string
+  period_start: string
+  avg_score: number
+  avg_seo: number
+  avg_response_time: number | string
+  avg_fcp: number
+  avg_si: number
+  avg_lcp: number
+  avg_tbt: number
+  avg_cls: number
+}
+
 export type Period = 'hourly' | 'daily' | 'weekly' | 'monthly'
 
 export type PerformanceMetricKey =

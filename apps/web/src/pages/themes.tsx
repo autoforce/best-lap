@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react'
-import { useQueries } from '@tanstack/react-query'
 import { AppShell } from '@/components/layout/app-shell'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -15,8 +14,8 @@ import { ThemeCard } from '@/components/themes/theme-card'
 import { ThemesComparisonChart } from '@/components/themes/themes-comparison-chart'
 import { ThemesTable } from '@/components/themes/themes-table'
 import { useChannels } from '@/hooks/use-channels'
-import { metricsApi } from '@/lib/api/endpoints'
-import type { Period } from '@/types/api'
+import { useAllChannelsMetricsGrouped } from '@/hooks/use-metrics'
+import type { Period, AverageMetric } from '@/types/api'
 import { Layers, ChevronDown, ChevronUp, X } from 'lucide-react'
 
 const periodLabels: Record<Period, string> = {
@@ -62,20 +61,78 @@ export function ThemesPage() {
     return Array.from(uniqueThemes).filter(Boolean).sort()
   }, [channels])
 
-  // Fetch metrics for themes using useQueries
-  const themesToFetch = comparisonMode ? selectedThemesForComparison : themes
-  const themeMetricsQueries = useQueries({
-    queries: themesToFetch.map((theme) => ({
-      queryKey: ['metrics', 'theme', theme, period],
-      queryFn: async () => {
-        const { data } = await metricsApi.getThemeAverage(theme, period)
-        return { theme, metrics: data.metrics || [] }
-      },
-      enabled: !!theme,
-    })),
-  })
+  // Fetch metrics for ALL channels using optimized endpoint (single request)
+  const { data: allChannelsMetrics, isLoading: isLoadingMetrics } = useAllChannelsMetricsGrouped(period)
 
-  const isLoadingMetrics = themeMetricsQueries.some((q) => q.isLoading)
+  // Group metrics by theme
+  const metricsGroupedByTheme = useMemo(() => {
+    if (!allChannelsMetrics || !channels) return new Map<string, AverageMetric[]>()
+
+    const groupedMap = new Map<string, AverageMetric[]>()
+
+    allChannelsMetrics.forEach((metric) => {
+      const channel = channels.find(c => c.id === metric.channel_id)
+      if (!channel || !channel.theme) return
+
+      const theme = channel.theme
+      const existing = groupedMap.get(theme) || []
+
+      // Group metrics by period_start for this theme
+      groupedMap.set(theme, [
+        ...existing,
+        {
+          period_start: metric.period_start,
+          avg_score: metric.avg_score,
+          avg_seo: metric.avg_seo,
+          avg_response_time: metric.avg_response_time,
+          avg_fcp: metric.avg_fcp,
+          avg_si: metric.avg_si,
+          avg_lcp: metric.avg_lcp,
+          avg_tbt: metric.avg_tbt,
+          avg_cls: metric.avg_cls,
+        }
+      ])
+    })
+
+    // Aggregate metrics by period for each theme
+    const aggregatedMap = new Map<string, AverageMetric[]>()
+
+    groupedMap.forEach((metrics, theme) => {
+      const metricsByPeriod = new Map<string, AverageMetric[]>()
+
+      metrics.forEach((metric) => {
+        const existing = metricsByPeriod.get(metric.period_start) || []
+        metricsByPeriod.set(metric.period_start, [...existing, metric])
+      })
+
+      const aggregated: AverageMetric[] = Array.from(metricsByPeriod.entries()).map(
+        ([period_start, metrics]) => {
+          const count = metrics.length
+          return {
+            period_start,
+            avg_score: metrics.reduce((sum, m) => sum + m.avg_score, 0) / count,
+            avg_seo: metrics.reduce((sum, m) => sum + m.avg_seo, 0) / count,
+            avg_response_time:
+              metrics.reduce((sum, m) => {
+                const rt = typeof m.avg_response_time === 'string'
+                  ? parseFloat(m.avg_response_time)
+                  : m.avg_response_time
+                return sum + rt
+              }, 0) / count,
+            avg_fcp: metrics.reduce((sum, m) => sum + m.avg_fcp, 0) / count,
+            avg_si: metrics.reduce((sum, m) => sum + m.avg_si, 0) / count,
+            avg_lcp: metrics.reduce((sum, m) => sum + m.avg_lcp, 0) / count,
+            avg_tbt: metrics.reduce((sum, m) => sum + m.avg_tbt, 0) / count,
+            avg_cls: metrics.reduce((sum, m) => sum + m.avg_cls, 0) / count,
+          }
+        }
+      )
+
+      aggregatedMap.set(theme, aggregated.sort((a, b) => a.period_start.localeCompare(b.period_start)))
+    })
+
+    return aggregatedMap
+  }, [allChannelsMetrics, channels])
 
   // Handle theme selection for comparison
   const handleAddThemeToComparison = (theme: string) => {
@@ -110,9 +167,8 @@ export function ThemesPage() {
     // In comparison mode, only process selected themes; otherwise, all themes
     const themesToProcess = comparisonMode ? selectedThemesForComparison : themes
 
-    return themesToProcess.map((theme, index) => {
-      const queryResult = themeMetricsQueries[index]
-      const metrics = queryResult?.data?.metrics || []
+    return themesToProcess.map((theme) => {
+      const metrics = metricsGroupedByTheme.get(theme) || []
       const latestMetric = metrics.length > 0 ? metrics[metrics.length - 1] : null
 
       const channelCount = channels?.filter((c) => c.theme === theme).length || 0
@@ -136,29 +192,27 @@ export function ThemesPage() {
         value,
       }
     })
-  }, [themes, selectedThemesForComparison, comparisonMode, themeMetricsQueries, channels, metricKey])
+  }, [themes, selectedThemesForComparison, comparisonMode, metricsGroupedByTheme, channels, metricKey])
 
   // Prepare data for chart (either all themes or selected ones)
   const chartData = useMemo(() => {
     const themesForChart = comparisonMode ? selectedThemesForComparison : themes
     return themesForChart.map((theme, index) => {
-      const queryResult = themeMetricsQueries[index]
       return {
         theme,
-        metrics: queryResult?.data?.metrics || [],
+        metrics: metricsGroupedByTheme.get(theme) || [],
         color: THEME_COLORS[index % THEME_COLORS.length],
       }
     })
-  }, [themes, selectedThemesForComparison, comparisonMode, themeMetricsQueries])
+  }, [themes, selectedThemesForComparison, comparisonMode, metricsGroupedByTheme])
 
   // Prepare data for table (with comparison data)
   const tableData = useMemo(() => {
     // In normal mode, use all themes; in comparison mode, use selected themes
     const themesToProcess = comparisonMode ? selectedThemesForComparison : themes
 
-    return themesToProcess.map((theme, index) => {
-      const queryResult = themeMetricsQueries[index]
-      const metrics = queryResult?.data?.metrics || []
+    return themesToProcess.map((theme) => {
+      const metrics = metricsGroupedByTheme.get(theme) || []
       const latestMetric = metrics.length > 0 ? metrics[metrics.length - 1] : null
 
       const channelCount = channels?.filter((c) => c.theme === theme).length || 0
@@ -183,7 +237,7 @@ export function ThemesPage() {
         color: THEME_COLORS[colorIndex % THEME_COLORS.length],
       }
     })
-  }, [themes, selectedThemesForComparison, comparisonMode, themeMetricsQueries, channels])
+  }, [themes, selectedThemesForComparison, comparisonMode, metricsGroupedByTheme, channels])
 
   // Find best performing theme based on selected metric
   const bestTheme = useMemo(() => {
