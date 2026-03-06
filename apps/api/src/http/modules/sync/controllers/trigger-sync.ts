@@ -1,8 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { env } from '@best-lap/env'
 import { AutoforceApiService, SyncChannelsUseCase } from '@best-lap/core'
-import { TypeormChannelsRepository } from '@best-lap/infra/typeorm/repositories/typeorm-channels-repository'
-import { TypeormPagesRepository } from '@best-lap/infra/typeorm/repositories/typeorm-pages-repository'
+import { TypeormChannelsRepository, TypeormPagesRepository } from '@best-lap/infra'
 
 /**
  * Triggers a manual synchronization of channels from Autoforce API
