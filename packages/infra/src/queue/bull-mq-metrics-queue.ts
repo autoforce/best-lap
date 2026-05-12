@@ -20,7 +20,11 @@ export class BullMqPageMetricsQueue implements PageMetricsQueue {
     await queue.add(
       'collectChannelPerformanceMetric',
       { pageUrl, pageId },
-      { jobId: `collect-metrics-${pageId}-${dateTimestamp}` }
+      {
+        jobId: `collect-metrics-${pageId}-${dateTimestamp}`,
+        removeOnComplete: { count: 100 },
+        removeOnFail: { count: 50 },
+      }
     )
   }
 } 
