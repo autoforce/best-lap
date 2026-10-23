@@ -32,6 +32,11 @@ describe('env', () => {
     assert.equal(loadEnv({}).JWT_SECRET, undefined)
   })
 
+  it('limits the database pool to 5 connections by default', () => {
+    assert.equal(loadEnv({}).DB_POOL_MAX, 5)
+    assert.equal(loadEnv({ DB_POOL_MAX: '8' }).DB_POOL_MAX, 8)
+  })
+
   it('takes the port from API_PORT, then SERVER_PORT, then PORT', () => {
     assert.equal(loadEnv({ PORT: '10000' }).API_PORT, 10000)
     assert.equal(loadEnv({ SERVER_PORT: '4444', PORT: '10000' }).API_PORT, 4444)

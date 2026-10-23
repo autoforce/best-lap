@@ -22,6 +22,9 @@ const envSchema = z.object({
   DB_PASSWORD: z.string().optional(),
   DB_NAME: z.string().optional(),
   DB_LOGGING: booleanFlag(false),
+  // Connections each process may open. The production Postgres allows 25 in total,
+  // and the API and the collector each have their own pool.
+  DB_POOL_MAX: z.coerce.number().int().min(1).default(5),
 
   REDIS_PORT: z.coerce.number().default(6379),
   REDIS_HOST: z.string().default('localhost'),
@@ -72,6 +75,7 @@ function validateEnv() {
     DB_PASSWORD: process.env.DB_PASSWORD,
     DB_NAME: process.env.DB_NAME,
     DB_LOGGING: process.env.DB_LOGGING?.toLowerCase(),
+    DB_POOL_MAX: process.env.DB_POOL_MAX,
 
     REDIS_PORT: process.env.REDIS_PORT,
     REDIS_HOST: process.env.REDIS_HOST,

@@ -22,6 +22,7 @@ O que muda no ambiente ao publicar esta versão e o que conferir depois.
 | `ALERTS_CRON` / `WEEKLY_DIGEST_CRON` | Collector | não | Padrão: todo dia às 9h e segunda às 9h |
 | `PSI_TIMEOUT_MS` | Collector | não | Padrão 90000 |
 | `DB_LOGGING` | API e collector | não | `true` volta a logar cada query (só para depuração) |
+| `DB_POOL_MAX` | API e collector | não | Conexões por processo, padrão 5. O Postgres de produção aceita 25 no total |
 
 `SEED_THEMES_URL` não é mais usada e pode ser removida.
 

@@ -34,6 +34,8 @@ export const dataSource = new DataSource({
   synchronize: false,
   // Logging every query floods stdout in production; errors and warnings are enough
   logging: env.DB_LOGGING ? true : ['error', 'warn'],
+  // node-postgres pool size (TypeORM's default is 10 per process)
+  extra: { max: env.DB_POOL_MAX },
   migrationsTransactionMode: 'each',
   // Use direct imports for more reliable entity loading
   entities: [Channel, Page, Metric, Provider, User],
