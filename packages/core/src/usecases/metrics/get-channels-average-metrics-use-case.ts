@@ -1,7 +1,7 @@
-import { endOfDay, parseISO } from "date-fns";
 import { PerformanceAverageMetricsResponse, PerformanceMetricEnum } from "../../types";
 import { MetricsRepository } from "../../modules";
-import { filterByAverageMetric } from "../../utils";
+import { metricsSource } from "./metrics-sql";
+import { endOfUtcDay, filterByAverageMetric, startOfUtcDay } from "../../utils";
 
 type GetMetricsAverageParams = {
   period: 'hourly' | 'daily' | 'weekly'
@@ -44,32 +44,16 @@ export class GetChannelsAverageMetricsUseCase {
   }: GetMetricsAverageParams) {
     if (!period) return null;
 
-    const granularity = {
-      hourly: 'hour',
-      daily: 'day',
-      weekly: 'week',
-    }[period];
+    const parsedStartDate = startOfUtcDay(startDate);
+    const parsedEndDate = endDate ? endOfUtcDay(endDate) : new Date();
+    const source = metricsSource(period);
 
-    if (!granularity) {
-      throw new Error(`Invalid period: ${period}`);
-    }
-
-    const parsedStartDate = parseISO(startDate);
-    const parsedEndDate = endDate ? endOfDay(parseISO(endDate)) : new Date();
-
-    const sourceTable = {
-      daily: 'metrics_daily',
-      weekly: 'metrics_weekly',
-      hourly: 'metrics',
-    }[period];
-
-    const timeColumn = period === 'hourly' ? 'time' : 'bucket';
-
-    const whereConditions = [`${timeColumn} BETWEEN $1 AND $2`];
-    const queryParams: any[] = [parsedStartDate, parsedEndDate];
+    // Same universe as the grouped endpoint: only active channels count towards averages
+    const whereConditions = [`${source.timeColumn} BETWEEN $1 AND $2`, 'c.active = true'];
+    const queryParams: unknown[] = [parsedStartDate, parsedEndDate];
 
     if (pagePath) {
-      whereConditions.push('p.path = $' + (queryParams.length + 1));
+      whereConditions.push(`p.path = $${queryParams.length + 1}`);
       queryParams.push(pagePath);
     }
 
@@ -83,50 +67,16 @@ export class GetChannelsAverageMetricsUseCase {
       queryParams.push(providerId);
     }
 
-    const colsMetricsTable = {
-      score: 'score',
-      response_time: '"response_time"',
-      fcp: 'fcp',
-      si: 'si',
-      lcp: 'lcp',
-      tbt: 'tbt',
-      cls: 'cls',
-      seo: 'seo',
-    }
-
-    const colsAvgMetricsTable = {
-      score: 'avg_score',
-      response_time: '"avg_response_time"',
-      fcp: 'avg_fcp',
-      si: 'avg_si',
-      lcp: 'avg_lcp',
-      tbt: 'avg_tbt',
-      cls: 'avg_cls',
-      seo: 'avg_seo',
-    }
-
-    const tableColsMap = sourceTable === 'metrics' ? colsMetricsTable : colsAvgMetricsTable;
-
-    const needsPagesJoin = theme || pagePath || providerId;
-    const needsChannelsJoin = theme || providerId;
-
     const results = await this.metricsRepository.query(
       `
       SELECT
-        DATE_TRUNC('${granularity}', ${timeColumn}) AS period_start,
-        AVG(${tableColsMap.score}) AS avg_score,
-        AVG(${tableColsMap.response_time}) AS avg_response_time,
-        AVG(${tableColsMap.fcp}) AS avg_fcp,
-        AVG(${tableColsMap.si}) AS avg_si,
-        AVG(${tableColsMap.lcp}) AS avg_lcp,
-        AVG(${tableColsMap.tbt}) AS avg_tbt,
-        AVG(${tableColsMap.cls}) AS avg_cls,
-        AVG(${tableColsMap.seo}) AS avg_seo
-      FROM ${sourceTable} m
-      ${needsPagesJoin ? 'INNER JOIN pages p ON m.page_id = p.id' : ''}
-      ${needsChannelsJoin ? 'INNER JOIN channels c ON p.channel_id = c.id' : ''}
+        ${source.periodStart} AS period_start,
+        ${source.averages}
+      FROM ${source.table} m
+      INNER JOIN pages p ON m.page_id = p.id
+      INNER JOIN channels c ON p.channel_id = c.id
       WHERE ${whereConditions.join(' AND ')}
-      GROUP BY DATE_TRUNC('${granularity}', ${timeColumn})
+      GROUP BY ${source.periodStart}
       ORDER BY period_start;
       `,
       queryParams

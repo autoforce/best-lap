@@ -1,4 +1,4 @@
-import { endOfDay, parseISO } from 'date-fns';
+import { endOfUtcDay, startOfUtcDay } from './parse-utc-date';
 import { Metric, PerformanceMetricsResponse } from '../types';
 
 type FilterDateOptions = {
@@ -7,8 +7,8 @@ type FilterDateOptions = {
 }
 
 export const filterByDate = ({ startDate, endDate }: FilterDateOptions, channelMetrics: Metric[] | PerformanceMetricsResponse[]): PerformanceMetricsResponse[] => {
-  const parsedStartDate = startDate && parseISO(startDate);
-  const parsedEndDate = endDate && endOfDay(parseISO(endDate))
+  const parsedStartDate = startDate && startOfUtcDay(startDate);
+  const parsedEndDate = endDate && endOfUtcDay(endDate)
 
   const filteredMetricsData = channelMetrics.filter(metricData => {
     let isInThePeriod = true;

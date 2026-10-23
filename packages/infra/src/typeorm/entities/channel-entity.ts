@@ -35,6 +35,9 @@ export class Channel implements ChannelEntity {
   @Column('uuid', { nullable: true })
   provider_id?: string;
 
+  @Column('text', { nullable: true })
+  source?: string;
+
   @ManyToOne(() => Provider, (provider) => provider.channels, { nullable: true })
   @JoinColumn({ name: 'provider_id' })
   provider?: Provider;
