@@ -27,7 +27,7 @@ services:
       - key: DB_USER
         value: best_lap
       - key: DB_PASSWORD
-        value: best_lap
+        sync: false  # Set in the Render dashboard; never commit the password
       - key: DB_NAME
         value: best_lap_db
 
@@ -48,3 +48,11 @@ services:
       # Swagger
       - key: FORCE_HTTP_SWAGGER
         value: false
+
+      # Authentication
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SYNC_API_KEY
+        generateValue: true  # x-api-key for /sync/* (Make scenarios)
+      - key: CRON_TIMEZONE
+        value: America/Sao_Paulo
