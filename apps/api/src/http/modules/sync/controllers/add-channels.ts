@@ -145,7 +145,7 @@ export async function addChannels(request: FastifyRequest, reply: FastifyReply) 
       return reply.status(400).send({
         error: 'Bad Request',
         message: 'Invalid request body',
-        details: error.errors,
+        details: error.issues,
       })
     }
 

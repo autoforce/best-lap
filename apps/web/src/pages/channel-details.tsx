@@ -7,15 +7,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ChannelInfoTab } from '@/components/channels/channel-info-tab'
 import { ChannelPagesTab } from '@/components/channels/channel-pages-tab'
+import { ChannelPerformanceTab } from '@/components/channels/channel-performance-tab'
+import { ChannelFixesTab } from '@/components/channels/channel-fixes-tab'
 import { ChannelDialog } from '@/components/channels/channel-dialog'
 import { useChannel } from '@/hooks/use-channels'
+import { useSearchState } from '@/hooks/use-search-state'
 import { TriggerCollectionDialog } from '@/components/trigger-collection-dialog'
+import { CopyLinkButton } from '@/components/layout/copy-link-button'
 import { useTriggerCollectionChannel } from '@/hooks/use-metrics'
+
+const TABS = ['performance', 'pages', 'fix', 'info'] as const
+type Tab = (typeof TABS)[number]
 
 export function ChannelDetailsPage() {
   const { channelId } = useParams({ strict: false })
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState('info')
+  const [search, setSearch] = useSearchState<{ tab?: string; page?: string }>()
+  const activeTab: Tab = TABS.includes(search.tab as Tab) ? (search.tab as Tab) : 'performance'
 
   const { data: channel, isLoading, isError } = useChannel(channelId)
   const { mutate: triggerCollectionChannel, isPending: isCollecting } =
@@ -34,10 +42,10 @@ export function ChannelDetailsPage() {
 
   if (isError || !channel) {
     return (
-      <AppShell title="Erro" description="Canal não encontrado">
+      <AppShell title="Canal não encontrado" description="Verifique o endereço ou volte para a lista">
         <div className="flex h-[400px] flex-col items-center justify-center gap-4">
           <p className="text-destructive">
-            Não foi possível carregar as informações do canal.
+            Não foi possível carregar este canal. Ele pode ter sido removido.
           </p>
           <Button asChild>
             <Link to="/channels">
@@ -59,7 +67,8 @@ export function ChannelDetailsPage() {
         { label: channel.name },
       ]}
       action={
-        <div className="flex gap-2">
+        <>
+          <CopyLinkButton />
           <TriggerCollectionDialog
             scope="channel"
             channelName={channel.name}
@@ -67,30 +76,41 @@ export function ChannelDetailsPage() {
             onConfirm={() => triggerCollectionChannel(channel.id)}
             isPending={isCollecting}
           />
-          <Button asChild variant="outline">
-            <Link to="/channels">
-              <ChevronLeft className="mr-2 h-4 w-4" />
-              Voltar
-            </Link>
-          </Button>
-        </div>
+        </>
       }
     >
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-[400px] grid-cols-2">
+      <Tabs
+        value={activeTab}
+        // Each tab has its own page selection, so it is cleared when switching tabs
+        onValueChange={(tab) => setSearch({ tab: tab === 'performance' ? undefined : tab, page: undefined })}
+        className="w-full"
+      >
+        <TabsList className="grid h-auto w-full max-w-[640px] grid-cols-2 sm:grid-cols-4">
+          <TabsTrigger value="performance">Performance</TabsTrigger>
+          <TabsTrigger value="pages">
+            Páginas{channel.pages?.length ? ` (${channel.pages.length})` : ''}
+          </TabsTrigger>
+          <TabsTrigger value="fix">O que corrigir</TabsTrigger>
           <TabsTrigger value="info">Informações</TabsTrigger>
-          <TabsTrigger value="pages">Páginas</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="performance" className="mt-6">
+          <ChannelPerformanceTab channel={channel} />
+        </TabsContent>
+
+        <TabsContent value="pages" className="mt-6">
+          <ChannelPagesTab channel={channel} />
+        </TabsContent>
+
+        <TabsContent value="fix" className="mt-6">
+          <ChannelFixesTab channel={channel} />
+        </TabsContent>
 
         <TabsContent value="info" className="mt-6">
           <ChannelInfoTab
             channel={channel}
             onEdit={() => setDialogOpen(true)}
           />
-        </TabsContent>
-
-        <TabsContent value="pages" className="mt-6">
-          <ChannelPagesTab channel={channel} />
         </TabsContent>
       </Tabs>
 

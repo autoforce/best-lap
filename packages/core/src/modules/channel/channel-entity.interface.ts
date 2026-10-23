@@ -10,6 +10,7 @@ export interface ChannelEntity {
   active: boolean;
   is_reference?: boolean;
   provider_id?: string;
+  source?: string;
   provider?: ProviderEntity;
   pages?: PageEntity[];
   created_at?: Date;

@@ -154,7 +154,7 @@ export function ChannelForm({ open, onOpenChange, channel }: ChannelFormProps) {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="provider_id">Provider (Opcional)</Label>
+              <Label htmlFor="provider_id">Provedor (opcional)</Label>
               <Select
                 value={providerValue}
                 onValueChange={(value) => setValue('provider_id', value === 'none' ? undefined : value)}

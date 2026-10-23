@@ -220,7 +220,7 @@ export function ChannelDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="provider_id">Provider (Opcional)</Label>
+            <Label htmlFor="provider_id">Provedor (opcional)</Label>
             <Select
               value={form.watch('provider_id') || 'none'}
               onValueChange={(value) =>

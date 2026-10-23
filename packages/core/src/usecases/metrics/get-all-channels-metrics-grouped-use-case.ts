@@ -1,6 +1,7 @@
-import { endOfDay, parseISO } from "date-fns";
+import { endOfUtcDay, startOfUtcDay } from "../../utils";
 import { PerformanceMetricEnum } from "../../types";
 import { MetricsRepository } from "../../modules";
+import { metricsSource } from "./metrics-sql";
 
 type GetMetricsGroupedByChannelParams = {
   period: 'hourly' | 'daily' | 'weekly'
@@ -44,77 +45,29 @@ export class GetAllChannelsMetricsGroupedUseCase {
   }: GetMetricsGroupedByChannelParams): Promise<ChannelMetricsGrouped[]> {
     if (!period) throw new Error('Period is required');
 
-    const granularity = {
-      hourly: 'hour',
-      daily: 'day',
-      weekly: 'week',
-    }[period];
-
-    if (!granularity) {
-      throw new Error(`Invalid period: ${period}`);
-    }
-
-    const parsedStartDate = parseISO(startDate);
-    const parsedEndDate = endDate ? endOfDay(parseISO(endDate)) : new Date();
-
-    const sourceTable = {
-      daily: 'metrics_daily',
-      weekly: 'metrics_weekly',
-      hourly: 'metrics',
-    }[period];
-
-    const timeColumn = period === 'hourly' ? 'time' : 'bucket';
-
-    const colsMetricsTable = {
-      score: 'score',
-      response_time: '"response_time"',
-      fcp: 'fcp',
-      si: 'si',
-      lcp: 'lcp',
-      tbt: 'tbt',
-      cls: 'cls',
-      seo: 'seo',
-    }
-
-    const colsAvgMetricsTable = {
-      score: 'avg_score',
-      response_time: '"avg_response_time"',
-      fcp: 'avg_fcp',
-      si: 'avg_si',
-      lcp: 'avg_lcp',
-      tbt: 'avg_tbt',
-      cls: 'avg_cls',
-      seo: 'avg_seo',
-    }
-
-    const tableColsMap = sourceTable === 'metrics' ? colsMetricsTable : colsAvgMetricsTable;
+    const parsedStartDate = startOfUtcDay(startDate);
+    const parsedEndDate = endDate ? endOfUtcDay(endDate) : new Date();
+    const source = metricsSource(period);
 
     const results = await this.metricsRepository.query(
       `
       SELECT
         c.id AS channel_id,
         c.name AS channel_name,
-        DATE_TRUNC('${granularity}', ${timeColumn}) AS period_start,
-        AVG(${tableColsMap.score}) AS avg_score,
-        AVG(${tableColsMap.response_time}) AS avg_response_time,
-        AVG(${tableColsMap.fcp}) AS avg_fcp,
-        AVG(${tableColsMap.si}) AS avg_si,
-        AVG(${tableColsMap.lcp}) AS avg_lcp,
-        AVG(${tableColsMap.tbt}) AS avg_tbt,
-        AVG(${tableColsMap.cls}) AS avg_cls,
-        AVG(${tableColsMap.seo}) AS avg_seo
-      FROM ${sourceTable} m
+        ${source.periodStart} AS period_start,
+        ${source.averages}
+      FROM ${source.table} m
       INNER JOIN pages p ON m.page_id = p.id
       INNER JOIN channels c ON p.channel_id = c.id
-      WHERE ${timeColumn} BETWEEN $1 AND $2
+      WHERE ${source.timeColumn} BETWEEN $1 AND $2
         AND p.path = '/'
         AND c.active = true
-      GROUP BY c.id, c.name, DATE_TRUNC('${granularity}', ${timeColumn})
+      GROUP BY c.id, c.name, ${source.periodStart}
       ORDER BY c.id, period_start;
       `,
       [parsedStartDate, parsedEndDate]
     );
 
-    return results;
+    return results as ChannelMetricsGrouped[];
   }
 }

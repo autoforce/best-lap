@@ -80,13 +80,13 @@ export function ProviderDialog({
           data,
         })
         toast({
-          title: 'Provider atualizado',
+          title: 'Provedor atualizado',
           description: 'O provider foi atualizado com sucesso.',
         })
       } else {
         await createProvider.mutateAsync(data)
         toast({
-          title: 'Provider criado',
+          title: 'Provedor criado',
           description: 'O provider foi criado com sucesso.',
         })
       }
@@ -111,7 +111,7 @@ export function ProviderDialog({
       <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? 'Editar Provider' : 'Criar Novo Provider'}
+            {isEditing ? 'Editar provedor' : 'Novo provedor'}
           </DialogTitle>
           <DialogDescription>
             {isEditing
@@ -196,7 +196,7 @@ export function ProviderDialog({
                 ? 'Salvando...'
                 : isEditing
                   ? 'Atualizar'
-                  : 'Criar Provider'}
+                  : 'Criar provedor'}
             </Button>
           </DialogFooter>
         </form>

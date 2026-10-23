@@ -20,6 +20,9 @@ export const loginDocs = {
       401: z.object({
         message: z.string(),
       }),
+      429: z.object({
+        message: z.string(),
+      }),
     },
   },
 }

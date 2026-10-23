@@ -12,6 +12,11 @@ import type {
   Metric,
   AverageMetric,
   ChannelMetricGrouped,
+  CollectionStatus,
+  AttentionItem,
+  CommonOpportunity,
+  PageInsights,
+  PageMetricGrouped,
   Period,
   TriggerCollectionResponse,
   User,
@@ -79,34 +84,47 @@ export const pagesApi = {
 }
 
 // Metrics endpoints
+export interface DateRangeParams {
+  startDate?: string
+  endDate?: string
+}
+
 export const metricsApi = {
   getRawMetrics: (channelId: string) =>
-    api.get<{ metrics: Metric[] }>(`/channels/metrics/${channelId}`),
+    api.get<{ page_url: string; theme: string; metrics: Metric[] }>(`/channels/metrics/${channelId}`),
 
-  getChannelAverage: (channelId: string, period: Period) =>
+  getChannelAverage: (channelId: string, period: Period, params?: DateRangeParams & { page_id?: string }) =>
     api.get<{ metrics: AverageMetric[] }>(
-      `/channels/metrics/${channelId}/average/${period}`
+      `/channels/metrics/${channelId}/average/${period}`,
+      { params }
     ),
 
-  getAllAverage: (period: Period) =>
+  getAllAverage: (period: Period, params?: DateRangeParams) =>
     api.get<{ metrics: AverageMetric[] }>(
-      `/channels/metrics/average/${period}`
+      `/channels/metrics/average/${period}`,
+      { params }
     ),
 
-  getAllGroupedByChannel: (period: Period) =>
+  getAllGroupedByChannel: (period: Period, params?: DateRangeParams) =>
     api.get<{ metrics: ChannelMetricGrouped[] }>(
-      `/channels/metrics/grouped/${period}`
+      `/channels/metrics/grouped/${period}`,
+      { params }
     ),
 
-  getThemeAverage: (theme: string, period: Period) =>
+  getThemeAverage: (theme: string, period: Period, params?: DateRangeParams) =>
     api.get<{ metrics: AverageMetric[] }>(
-      `/channels/metrics/theme/${theme}/average/${period}`
+      `/channels/metrics/theme/${encodeURIComponent(theme)}/average/${period}`,
+      { params }
     ),
 
-  getProviderAverage: (providerId: string, period: Period) =>
+  getProviderAverage: (providerId: string, period: Period, params?: DateRangeParams) =>
     api.get<{ metrics: AverageMetric[] }>(
-      `/channels/metrics/provider/${providerId}/average/${period}`
+      `/channels/metrics/provider/${providerId}/average/${period}`,
+      { params }
     ),
+
+  getCollectionStatus: () =>
+    api.get<CollectionStatus>('/channels/metrics/status'),
 
   triggerCollectionAll: () =>
     api.post<TriggerCollectionResponse>('/channels/metrics/collect'),
@@ -116,6 +134,25 @@ export const metricsApi = {
 
   triggerCollectionPage: (channelId: string, pageId: string) =>
     api.post<TriggerCollectionResponse>(`/channels/metrics/${channelId}/pages/${pageId}/collect`),
+}
+
+// Insights endpoints
+export const insightsApi = {
+  getAttention: (providerId?: string) =>
+    api.get<{ generated_at: string; items: AttentionItem[] }>('/insights/attention', {
+      params: providerId ? { provider_id: providerId } : undefined,
+    }),
+
+  getCommonOpportunities: (filter: { theme?: string; providerId?: string } = {}) =>
+    api.get<{ channels_with_data: number; items: CommonOpportunity[] }>('/insights/opportunities', {
+      params: { theme: filter.theme, provider_id: filter.providerId },
+    }),
+
+  getChannelInsights: (channelId: string) =>
+    api.get<{ pages: PageInsights[] }>(`/insights/channels/${channelId}`),
+
+  getChannelPagesMetrics: (channelId: string, period: Period, params?: DateRangeParams) =>
+    api.get<{ metrics: PageMetricGrouped[] }>(`/insights/channels/${channelId}/pages/${period}`, { params }),
 }
 
 // Auth endpoints

@@ -73,7 +73,8 @@ export class TypeormChannelsRepository implements ChannelsRepository {
     const channelsByTheme = await channelRepository.find({
       where: {
         theme: theme,
-      }
+      },
+      relations: ['provider']
     })
 
     return channelsByTheme

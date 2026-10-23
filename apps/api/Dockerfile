@@ -2,7 +2,7 @@
 # Multi-stage build optimized for EC2 instances
 
 # Stage 1: Dependencies
-FROM node:18-alpine AS deps
+FROM node:22-alpine AS deps
 RUN npm install -g pnpm@8.14.0
 WORKDIR /app
 
@@ -21,7 +21,7 @@ COPY apps/api/package.json ./apps/api/
 RUN pnpm install --frozen-lockfile
 
 # Stage 2: Builder
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 RUN npm install -g pnpm@8.14.0
 WORKDIR /app
 
@@ -47,7 +47,7 @@ COPY apps/api/ ./apps/api/
 RUN pnpm build --filter=@best-lap/api
 
 # Stage 3: Production runtime
-FROM node:18-alpine AS runner
+FROM node:22-alpine AS runner
 RUN npm install -g pnpm@8.14.0
 
 # Create app user for security

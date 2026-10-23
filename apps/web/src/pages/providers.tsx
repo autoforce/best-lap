@@ -1,64 +1,91 @@
 import { useState, useMemo } from 'react'
-import { useQueries } from '@tanstack/react-query'
-import { Plus, Layers, X } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { AppShell } from '@/components/layout/app-shell'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { ProvidersTable } from '@/components/providers/providers-table'
 import { ProviderDialog } from '@/components/providers/provider-dialog'
-import { ProviderCard } from '@/components/providers/provider-card'
-import { ProvidersComparisonChart } from '@/components/providers/providers-comparison-chart'
+import { CopyLinkButton } from '@/components/layout/copy-link-button'
+import { PeriodSelector } from '@/components/metrics/period-selector'
+import { MetricTrendChart, CHART_COLORS } from '@/components/metrics/metric-trend-chart'
+import { RatingBadge } from '@/components/metrics/rating-badge'
+import { DeltaBadge } from '@/components/metrics/delta-badge'
 import { useProviders } from '@/hooks/use-providers'
 import { useChannels } from '@/hooks/use-channels'
-import { metricsApi } from '@/lib/api/endpoints'
-import type { Provider, Period } from '@/types/api'
+import { useAllChannelsMetricsGrouped } from '@/hooks/use-metrics'
+import { usePeriodSearch, useSearchState } from '@/hooks/use-search-state'
+import { aggregateByGroup } from '@/lib/aggregate'
+import { METRICS, computeDelta, formatMetric, isBetter, rateMetric, summarize, type MetricKey } from '@/lib/metrics'
+import { describePeriod, previousPeriodLabel } from '@/lib/period'
+import type { Provider } from '@/types/api'
 
-const periodLabels: Record<Period, string> = {
-  hourly: 'Por Hora',
-  daily: 'Por Dia',
-  weekly: 'Por Semana',
-  monthly: 'Por Mês',
-}
-
-const metricOptions = [
-  { value: 'avg_score', label: 'Performance Score' },
-  { value: 'avg_seo', label: 'SEO Score' },
-  { value: 'avg_response_time', label: 'Response Time' },
-] as const
-
-type MetricKey = (typeof metricOptions)[number]['value']
-
-// Predefined colors for providers
-const PROVIDER_COLORS = [
-  '#3b82f6', // blue
-  '#ef4444', // red
-  '#10b981', // green
-  '#f59e0b', // amber
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#06b6d4', // cyan
-  '#f97316', // orange
-]
+const PROVIDER_METRICS: MetricKey[] = ['score', 'lcp', 'cls', 'tbt', 'response_time', 'seo']
+const MAX_COMPARED = 6
 
 export function ProvidersPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null)
-  const [comparisonMode, setComparisonMode] = useState(false)
-  const [selectedProvidersForComparison, setSelectedProvidersForComparison] = useState<string[]>([])
-  const [period, setPeriod] = useState<Period>('daily')
-  const [metricKey, setMetricKey] = useState<MetricKey>('avg_score')
+  const [period, setPeriod] = usePeriodSearch()
+  const [search, setSearch] = useSearchState<{ metric?: string; compare?: string }>()
+  const metricKey: MetricKey = PROVIDER_METRICS.includes(search.metric as MetricKey)
+    ? (search.metric as MetricKey)
+    : 'score'
 
-  const { data: providers, isLoading, isError } = useProviders()
-  const { data: channels } = useChannels()
+  const { data: providers = [], isLoading, isError } = useProviders()
+  const { data: channels = [] } = useChannels()
+  // One request for every channel, aggregated by provider here, instead of one request per provider
+  const grouped = useAllChannelsMetricsGrouped(period)
+
+  const providerOf = useMemo(() => {
+    const map = new Map(channels.map((c) => [c.id, c.provider_id]))
+    return (channelId: string) => map.get(channelId) ?? undefined
+  }, [channels])
+
+  const rows = useMemo(() => {
+    const current = aggregateByGroup(grouped.data?.current ?? [], providerOf)
+    const previous = aggregateByGroup(grouped.data?.previous ?? [], providerOf)
+    return providers.map((provider) => ({
+      provider,
+      activeChannels: channels.filter((c) => c.provider_id === provider.id && c.active).length,
+      series: current.get(provider.id) ?? [],
+      summary: summarize(current.get(provider.id) ?? []),
+      previous: summarize(previous.get(provider.id) ?? []),
+    }))
+  }, [grouped.data, providerOf, providers, channels])
+
+  // Default comparison: every provider with active channels
+  const compared = useMemo(() => {
+    if (search.compare) return search.compare.split(',').filter((id) => id && id !== '-')
+    return rows.filter((r) => r.activeChannels > 0).slice(0, MAX_COMPARED).map((r) => r.provider.id)
+  }, [search.compare, rows])
+
+  const comparedRows = rows.filter((r) => compared.includes(r.provider.id))
+
+  const bestId = useMemo(() => {
+    let best: { id: string; value: number } | null = null
+    for (const row of comparedRows) {
+      const value = row.summary[metricKey]
+      if (value === null) continue
+      if (!best || isBetter(metricKey, value, best.value)) best = { id: row.provider.id, value }
+    }
+    return comparedRows.length > 1 ? best?.id ?? null : null
+  }, [comparedRows, metricKey])
+
+  const toggleCompare = (providerId: string, checked: boolean) => {
+    const next = checked ? [...compared, providerId].slice(0, MAX_COMPARED) : compared.filter((id) => id !== providerId)
+    setSearch({ compare: next.length ? next.join(',') : '-' })
+  }
 
   const handleEdit = (provider: Provider) => {
     setSelectedProvider(provider)
@@ -72,404 +99,166 @@ export function ProvidersPage() {
 
   const handleDialogClose = (open: boolean) => {
     setDialogOpen(open)
-    if (!open) {
-      setSelectedProvider(null)
-    }
+    if (!open) setSelectedProvider(null)
   }
-
-  // Fetch metrics for providers using useQueries
-  const providersToFetch = comparisonMode ? selectedProvidersForComparison : (providers?.map((p) => p.id) || [])
-  const providerMetricsQueries = useQueries({
-    queries: providersToFetch.map((providerId) => ({
-      queryKey: ['metrics', 'provider', providerId, period],
-      queryFn: async () => {
-        const { data } = await metricsApi.getProviderAverage(providerId, period)
-        return { providerId, metrics: data.metrics || [] }
-      },
-      enabled: !!providerId && comparisonMode,
-    })),
-  })
-
-  const isLoadingMetrics = providerMetricsQueries.some((q) => q.isLoading)
-
-  // Handle provider selection for comparison
-  const handleAddProviderToComparison = (providerId: string) => {
-    if (selectedProvidersForComparison.length < 4 && !selectedProvidersForComparison.includes(providerId)) {
-      setSelectedProvidersForComparison([...selectedProvidersForComparison, providerId])
-    }
-  }
-
-  const handleRemoveProviderFromComparison = (providerId: string) => {
-    setSelectedProvidersForComparison(selectedProvidersForComparison.filter((id) => id !== providerId))
-  }
-
-  const handleStartComparison = () => {
-    setComparisonMode(true)
-  }
-
-  const handleExitComparison = () => {
-    setComparisonMode(false)
-    setSelectedProvidersForComparison([])
-  }
-
-  // Available providers for selection (not already selected)
-  const availableProviders = useMemo(() => {
-    return providers?.filter((p) => !selectedProvidersForComparison.includes(p.id)) || []
-  }, [providers, selectedProvidersForComparison])
-
-  // Can add more providers?
-  const canAddMore = selectedProvidersForComparison.length < 4
-
-  // Prepare data for cards
-  const providerCardsData = useMemo(() => {
-    if (!comparisonMode || selectedProvidersForComparison.length === 0) return []
-
-    return selectedProvidersForComparison.map((providerId, index) => {
-      const provider = providers?.find((p) => p.id === providerId)
-      const queryResult = providerMetricsQueries[index]
-      const metrics = queryResult?.data?.metrics || []
-      const latestMetric = metrics.length > 0 ? metrics[metrics.length - 1] : null
-
-      const channelCount = channels?.filter((c) => c.provider_id === providerId).length || 0
-
-      let value = 0
-      if (latestMetric) {
-        if (metricKey === 'avg_score') {
-          value = latestMetric.avg_score
-        } else if (metricKey === 'avg_seo') {
-          value = latestMetric.avg_seo
-        } else if (metricKey === 'avg_response_time') {
-          value = typeof latestMetric.avg_response_time === 'string'
-            ? parseFloat(latestMetric.avg_response_time)
-            : latestMetric.avg_response_time
-        }
-      }
-
-      return {
-        providerId,
-        providerName: provider?.name || 'Unknown',
-        channelCount,
-        value,
-      }
-    })
-  }, [selectedProvidersForComparison, comparisonMode, providerMetricsQueries, providers, metricKey])
-
-  // Prepare data for chart
-  const chartData = useMemo(() => {
-    if (!comparisonMode || selectedProvidersForComparison.length === 0) return []
-
-    return selectedProvidersForComparison.map((providerId, index) => {
-      const provider = providers?.find((p) => p.id === providerId)
-      const queryResult = providerMetricsQueries[index]
-      return {
-        providerId,
-        providerName: provider?.name || 'Unknown',
-        metrics: queryResult?.data?.metrics || [],
-        color: PROVIDER_COLORS[index % PROVIDER_COLORS.length],
-      }
-    })
-  }, [selectedProvidersForComparison, comparisonMode, providerMetricsQueries, providers])
-
-  // Find best performing provider based on selected metric
-  const bestProviderId = useMemo(() => {
-    if (selectedProvidersForComparison.length === 0 || !comparisonMode) return null
-
-    if (providerCardsData.length === 0) return null
-
-    let best = providerCardsData[0]
-    providerCardsData.forEach((item) => {
-      let currentValue = item.value
-      let bestValue = best.value
-
-      // For response time, lower is better
-      if (metricKey === 'avg_response_time') {
-        if (currentValue < bestValue) best = item
-      } else {
-        // For scores, higher is better
-        if (currentValue > bestValue) best = item
-      }
-    })
-
-    return best.providerId
-  }, [selectedProvidersForComparison, comparisonMode, providerCardsData, metricKey])
 
   if (isError) {
     return (
-      <AppShell title="Providers" description="Gerencie seus providers">
+      <AppShell title="Provedores" description="Plataformas que desenvolvem os sites">
         <div className="flex h-[400px] items-center justify-center">
-          <p className="text-destructive">
-            Erro ao carregar os providers. Tente novamente mais tarde.
-          </p>
+          <p className="text-destructive">Não foi possível carregar os provedores. Recarregue a página.</p>
         </div>
       </AppShell>
     )
   }
 
+  const comparedTo = previousPeriodLabel(period)
+
   return (
     <AppShell
-      title="Providers"
-      description={comparisonMode ? 'Compare a performance de múltiplos providers lado a lado' : 'Gerencie os provedores de tecnologia dos sites'}
-      breadcrumbs={[{ label: 'Providers' }]}
+      title="Provedores"
+      description="Plataformas que desenvolvem os sites e como cada uma performa"
+      breadcrumbs={[{ label: 'Provedores' }]}
       action={
-        !comparisonMode && (
-          <Button onClick={handleCreate} disabled={isLoading}>
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Provider
+        <>
+          <CopyLinkButton />
+          <Button size="sm" onClick={handleCreate} disabled={isLoading}>
+            <Plus />
+            Novo provedor
           </Button>
-        )
+        </>
       }
     >
       <div className="space-y-6">
-        {/* Comparison Mode UI */}
-        {comparisonMode ? (
-          <>
-            {/* Filters and Comparison Selection */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Modo Comparação</CardTitle>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleExitComparison}
-                  >
-                    Sair da Comparação
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {/* Provider Selection */}
-                  <div>
-                    <label className="mb-2 block text-sm font-medium">
-                      Providers Selecionados ({selectedProvidersForComparison.length}/4)
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedProvidersForComparison.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          Nenhum provider selecionado
-                        </p>
-                      ) : (
-                        selectedProvidersForComparison.map((providerId, index) => {
-                          const provider = providers?.find((p) => p.id === providerId)
-                          return (
-                            <Badge
-                              key={providerId}
-                              variant="secondary"
-                              className="gap-1 pr-1"
-                            >
-                              <div
-                                className="h-2 w-2 rounded-full"
-                                style={{
-                                  backgroundColor: PROVIDER_COLORS[index % PROVIDER_COLORS.length],
-                                }}
-                              />
-                              {provider?.name || 'Unknown'}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-4 w-4 p-0 hover:bg-transparent"
-                                onClick={() => handleRemoveProviderFromComparison(providerId)}
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </Badge>
-                          )
-                        })
-                      )}
-                    </div>
-                  </div>
+        <Card>
+          <CardContent className="p-4">
+            <PeriodSelector value={period} onChange={setPeriod} />
+          </CardContent>
+        </Card>
 
-                  {/* Add Provider + Filters Row */}
-                  <div className="flex flex-col gap-4 md:flex-row">
-                    {/* Add Provider Select */}
-                    <div className="flex-1">
-                      <label className="mb-2 block text-sm font-medium">
-                        Adicionar Provider
-                      </label>
-                      <Select
-                        value=""
-                        onValueChange={handleAddProviderToComparison}
-                        disabled={!canAddMore || isLoading}
-                      >
-                        <SelectTrigger>
-                          <SelectValue
-                            placeholder={
-                              canAddMore
-                                ? 'Selecione um provider'
-                                : 'Máximo de 4 providers'
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableProviders.length === 0 ? (
-                            <SelectItem value="none" disabled>
-                              Nenhum provider disponível
-                            </SelectItem>
-                          ) : (
-                            availableProviders.map((provider) => (
-                              <SelectItem key={provider.id} value={provider.id}>
-                                {provider.name}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Period Select */}
-                    <div className="flex-1">
-                      <label className="mb-2 block text-sm font-medium">
-                        Período
-                      </label>
-                      <Select
-                        value={period}
-                        onValueChange={(value) => setPeriod(value as Period)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o período" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(periodLabels).map(([value, label]) => (
-                            <SelectItem key={value} value={value}>
-                              {label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Metric Select */}
-                    <div className="flex-1">
-                      <label className="mb-2 block text-sm font-medium">
-                        Métrica Principal
-                      </label>
-                      <Select
-                        value={metricKey}
-                        onValueChange={(value) => setMetricKey(value as MetricKey)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione a métrica" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {metricOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Comparison Mode Empty State */}
-            {selectedProvidersForComparison.length === 0 && (
-              <Card>
-                <CardContent className="flex h-[300px] items-center justify-center">
-                  <div className="text-center">
-                    <Layers className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                    <p className="mt-4 text-sm text-muted-foreground">
-                      Selecione pelo menos um provider para começar a comparação
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Você pode comparar até 4 providers simultaneamente
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Comparison Chart */}
-            {!isLoadingMetrics && chartData.length > 0 && (
-              <ProvidersComparisonChart
-                data={chartData}
-                metricKey={metricKey}
+        <Card className="min-w-0">
+          <CardHeader className="space-y-3">
+            <div>
+              <CardTitle>{METRICS[metricKey].label} por provedor</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Média da home dos canais ativos de cada provedor · {describePeriod(period)}
+              </p>
+            </div>
+            <SegmentedControl<MetricKey>
+              label="Métrica"
+              value={metricKey}
+              options={PROVIDER_METRICS.map((m) => ({ value: m, label: METRICS[m].shortLabel }))}
+              onChange={(metric) => setSearch({ metric: metric === 'score' ? undefined : metric })}
+            />
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {grouped.isLoading || isLoading ? (
+              <div className="h-[320px] animate-pulse rounded-md bg-muted" />
+            ) : comparedRows.length === 0 ? (
+              <p className="py-12 text-center text-sm text-muted-foreground">
+                Marque pelo menos um provedor na tabela abaixo para ver o gráfico.
+              </p>
+            ) : (
+              <MetricTrendChart
+                metric={metricKey}
+                granularity={period.granularity}
+                showLegend
+                series={comparedRows.map((row, index) => ({
+                  id: row.provider.id,
+                  name: row.provider.name,
+                  color: CHART_COLORS[index % CHART_COLORS.length],
+                  points: row.series,
+                }))}
               />
             )}
 
-            {/* KPI Cards Grid */}
-            {selectedProvidersForComparison.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Resumo das Métricas</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Principais indicadores de performance de cada provider
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    {providerCardsData.map((data, index) => {
-                      const isBest = data.providerId === bestProviderId
-
-                      return (
-                        <ProviderCard
-                          key={data.providerId}
-                          providerName={data.providerName}
-                          value={data.value}
-                          label={metricOptions.find((m) => m.value === metricKey)?.label || ''}
-                          channelCount={data.channelCount}
-                          color={PROVIDER_COLORS[index % PROVIDER_COLORS.length]}
-                          isBest={isBest}
-                          isLoading={isLoadingMetrics}
-                        />
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </>
-        ) : (
-          /* Normal Mode UI */
-          <>
-            {/* Action Bar */}
-            {!isLoading && providers && providers.length > 1 && (
-              <div className="flex justify-end">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleStartComparison}
-                >
-                  <Layers className="mr-2 h-4 w-4" />
-                  Comparar Providers
-                </Button>
+            {isLoading ? (
+              <Skeleton className="h-40 w-full" />
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[90px]">No gráfico</TableHead>
+                      <TableHead>Provedor</TableHead>
+                      <TableHead className="text-right">Canais ativos</TableHead>
+                      <TableHead>{METRICS[metricKey].shortLabel}</TableHead>
+                      <TableHead>Variação</TableHead>
+                      {(['score', 'lcp', 'cls'] as MetricKey[])
+                        .filter((m) => m !== metricKey)
+                        .map((m) => (
+                          <TableHead key={m}>{METRICS[m].shortLabel}</TableHead>
+                        ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((row) => (
+                      <TableRow key={row.provider.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={compared.includes(row.provider.id)}
+                            disabled={!compared.includes(row.provider.id) && compared.length >= MAX_COMPARED}
+                            onCheckedChange={(checked) => toggleCompare(row.provider.id, !!checked)}
+                            aria-label={`Mostrar ${row.provider.name} no gráfico`}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {row.provider.name}
+                          {row.provider.id === bestId && (
+                            <span className="ml-2 rounded-full bg-good-soft px-2 py-0.5 text-xs font-semibold text-good">
+                              Melhor {METRICS[metricKey].shortLabel}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{row.activeChannels}</TableCell>
+                        <TableCell>
+                          <RatingBadge rating={rateMetric(metricKey, row.summary[metricKey])} className="text-sm">
+                            {formatMetric(metricKey, row.summary[metricKey])}
+                          </RatingBadge>
+                        </TableCell>
+                        <TableCell>
+                          <DeltaBadge delta={computeDelta(metricKey, row.summary[metricKey], row.previous[metricKey])} />
+                        </TableCell>
+                        {(['score', 'lcp', 'cls'] as MetricKey[])
+                          .filter((m) => m !== metricKey)
+                          .map((m) => (
+                            <TableCell key={m}>
+                              <RatingBadge rating={rateMetric(m, row.summary[m])}>
+                                {formatMetric(m, row.summary[m])}
+                              </RatingBadge>
+                            </TableCell>
+                          ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <p className="mt-2 text-xs text-muted-foreground">Variação {comparedTo}.</p>
               </div>
             )}
+          </CardContent>
+        </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>Cadastro de provedores</CardTitle>
+          </CardHeader>
+          <CardContent>
             {isLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-[400px] w-full" />
+              <Skeleton className="h-[300px] w-full" />
+            ) : providers.length === 0 ? (
+              <div className="flex h-[160px] items-center justify-center rounded-lg border border-dashed">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">Nenhum provedor cadastrado.</p>
+                  <Button variant="link" onClick={handleCreate} className="mt-2">
+                    Cadastrar o primeiro provedor
+                  </Button>
+                </div>
               </div>
             ) : (
-              <>
-                <ProvidersTable
-                  data={providers || []}
-                  onEdit={handleEdit}
-                />
-
-                {providers?.length === 0 && !isLoading && (
-                  <div className="flex h-[200px] items-center justify-center rounded-lg border border-dashed">
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground">
-                        Nenhum provider encontrado.
-                      </p>
-                      <Button
-                        variant="link"
-                        onClick={handleCreate}
-                        className="mt-2"
-                      >
-                        Criar seu primeiro provider
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
+              <ProvidersTable data={providers} onEdit={handleEdit} />
             )}
-          </>
-        )}
+          </CardContent>
+        </Card>
       </div>
 
       <ProviderDialog

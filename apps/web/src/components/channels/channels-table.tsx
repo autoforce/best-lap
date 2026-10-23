@@ -9,6 +9,7 @@ import {
   type ColumnDef,
   type SortingState,
   type RowSelectionState,
+  type Column,
 } from '@tanstack/react-table'
 import {
   Table,
@@ -42,12 +43,12 @@ import {
 import type { Channel } from '@/types/api'
 import {
   MoreHorizontal,
-  Eye,
   Pencil,
   Trash2,
   Power,
+  ArrowDown,
+  ArrowUp,
   ArrowUpDown,
-  BarChart3,
 } from 'lucide-react'
 import {
   useDeleteChannel,
@@ -55,44 +56,74 @@ import {
   useDisableChannel,
 } from '@/hooks/use-channels'
 import { useToast } from '@/hooks/use-toast'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
+import { formatMetric, rateMetric } from '@/lib/metrics'
+import type { ChannelPerformanceSnapshot } from '@/lib/channel-performance'
+import { RatingBadge } from '@/components/metrics/rating-badge'
+import { DeltaBadge } from '@/components/metrics/delta-badge'
+import { Sparkline } from '@/components/metrics/sparkline'
+import { MetricInfo } from '@/components/metrics/metric-info'
+
+export type ChannelRow = Channel & { performance?: ChannelPerformanceSnapshot }
 
 interface ChannelsTableProps {
-  data: Channel[]
+  data: ChannelRow[]
   onEdit: (channel: Channel) => void
   selectedIds: string[]
   onSelectionChange: (ids: string[]) => void
+  sorting: SortingState
+  onSortingChange: (sorting: SortingState) => void
+  isLoadingMetrics?: boolean
+}
+
+function SortHeader({ column, label }: { column: Column<ChannelRow, unknown>; label: string }) {
+  const sorted = column.getIsSorted()
+  const Icon = sorted === 'asc' ? ArrowUp : sorted === 'desc' ? ArrowDown : ArrowUpDown
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="-ml-3 h-8"
+      onClick={() => column.toggleSorting(sorted === 'asc')}
+    >
+      {label}
+      <Icon className="ml-1 h-3.5 w-3.5" />
+    </Button>
+  )
 }
 
 export function ChannelsTable({
   data,
   onEdit,
+  selectedIds,
   onSelectionChange,
+  sorting,
+  onSortingChange,
+  isLoadingMetrics,
 }: ChannelsTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([])
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [channelToDelete, setChannelToDelete] = useState<string | null>(null)
+  const [channelToDelete, setChannelToDelete] = useState<Channel | null>(null)
 
   const { toast } = useToast()
   const deleteChannel = useDeleteChannel()
   const enableChannel = useEnableChannel()
   const disableChannel = useDisableChannel()
 
-  const handleDelete = async (id: string) => {
+  const rowSelection: RowSelectionState = Object.fromEntries(selectedIds.map((id) => [id, true]))
+
+  const handleDelete = async (channel: Channel) => {
     try {
-      await deleteChannel.mutateAsync(id)
+      await deleteChannel.mutateAsync(channel.id)
       toast({
         title: 'Canal deletado',
-        description: 'Canal deletado com sucesso.',
+        description: `${channel.name} e o histórico de métricas foram removidos.`,
       })
       setDeleteDialogOpen(false)
       setChannelToDelete(null)
+      onSelectionChange(selectedIds.filter((id) => id !== channel.id))
     } catch (error) {
       toast({
-        title: 'Erro',
-        description: 'Ocorreu um erro ao deletar o canal.',
+        title: 'Não foi possível deletar',
+        description: 'Tente novamente. Se persistir, verifique se a API está no ar.',
         variant: 'destructive',
       })
     }
@@ -104,222 +135,198 @@ export function ChannelsTable({
         await disableChannel.mutateAsync(channel.id)
         toast({
           title: 'Canal desativado',
-          description: `Canal ${channel.name} foi desativado.`,
+          description: `${channel.name} sai das próximas coletas.`,
         })
       } else {
         await enableChannel.mutateAsync(channel.id)
         toast({
           title: 'Canal ativado',
-          description: `Canal ${channel.name} foi ativado.`,
+          description: `${channel.name} entra na próxima coleta.`,
         })
       }
     } catch (error) {
       toast({
-        title: 'Erro',
-        description: 'Ocorreu um erro ao alterar o status do canal.',
+        title: 'Não foi possível alterar o status',
+        description: 'Tente novamente em instantes.',
         variant: 'destructive',
       })
     }
   }
 
-  const columns: ColumnDef<Channel>[] = [
+  const metricPlaceholder = isLoadingMetrics ? '…' : '—'
+
+  const columns: ColumnDef<ChannelRow>[] = [
     {
       id: 'select',
       header: ({ table }) => (
         <Checkbox
           checked={table.getIsAllPageRowsSelected()}
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Selecionar todos"
+          aria-label="Selecionar todos desta página"
         />
       ),
       cell: ({ row }) => (
         <Checkbox
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Selecionar linha"
+          aria-label={`Selecionar ${row.original.name}`}
         />
       ),
       enableSorting: false,
-      enableHiding: false,
     },
     {
       accessorKey: 'name',
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          >
-            Nome
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
+      header: ({ column }) => <SortHeader column={column} label="Canal" />,
       cell: ({ row }) => (
-        <div className="font-medium">{row.getValue('name')}</div>
+        <Link
+          to="/channels/$channelId"
+          params={{ channelId: row.original.id }}
+          className="block min-w-[180px] max-w-[260px] hover:underline"
+        >
+          <span className="flex items-center gap-2">
+            <span className="truncate font-medium">{row.original.name}</span>
+            {!row.original.active && (
+              <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[10px]">
+                Inativo
+              </Badge>
+            )}
+          </span>
+          <span className="block truncate text-xs text-muted-foreground">{row.original.domain}</span>
+        </Link>
       ),
     },
     {
-      accessorKey: 'domain',
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          >
-            Domínio
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
-      cell: ({ row }) => (
-        <div className="max-w-[300px] truncate text-muted-foreground">
-          {row.getValue('domain')}
+      id: 'score',
+      accessorFn: (row) => row.performance?.score ?? undefined,
+      sortUndefined: 'last',
+      header: ({ column }) => (
+        <div className="flex items-center">
+          <SortHeader column={column} label="Score 7d" />
+          <MetricInfo metric="score" />
         </div>
       ),
+      cell: ({ row }) => {
+        const score = row.original.performance?.score ?? null
+        return score === null ? (
+          <span className="text-muted-foreground">{metricPlaceholder}</span>
+        ) : (
+          <RatingBadge rating={rateMetric('score', score)} className="text-sm">
+            {formatMetric('score', score)}
+          </RatingBadge>
+        )
+      },
+    },
+    {
+      id: 'trend',
+      header: '30 dias',
+      enableSorting: false,
+      cell: ({ row }) => {
+        const p = row.original.performance
+        if (!p) return <span className="text-muted-foreground">{metricPlaceholder}</span>
+        const tone = p.scoreDelta?.improved === false ? 'poor' : p.scoreDelta?.improved ? 'good' : 'neutral'
+        return <Sparkline values={p.trend} tone={tone} label={`Score dos últimos 30 dias de ${row.original.name}`} />
+      },
+    },
+    {
+      id: 'delta',
+      accessorFn: (row) => row.performance?.scoreDelta?.diff ?? undefined,
+      sortUndefined: 'last',
+      header: ({ column }) => <SortHeader column={column} label="Variação" />,
+      cell: ({ row }) => {
+        const delta = row.original.performance?.scoreDelta ?? null
+        return delta ? (
+          <DeltaBadge delta={delta} />
+        ) : (
+          <span className="text-muted-foreground">{metricPlaceholder}</span>
+        )
+      },
+    },
+    {
+      id: 'lcp',
+      accessorFn: (row) => row.performance?.lcp ?? undefined,
+      sortUndefined: 'last',
+      header: ({ column }) => <SortHeader column={column} label="LCP" />,
+      cell: ({ row }) => {
+        const lcp = row.original.performance?.lcp ?? null
+        return lcp === null ? (
+          <span className="text-muted-foreground">{metricPlaceholder}</span>
+        ) : (
+          <RatingBadge rating={rateMetric('lcp', lcp)}>{formatMetric('lcp', lcp)}</RatingBadge>
+        )
+      },
+    },
+    {
+      id: 'cls',
+      accessorFn: (row) => row.performance?.cls ?? undefined,
+      sortUndefined: 'last',
+      header: ({ column }) => <SortHeader column={column} label="CLS" />,
+      cell: ({ row }) => {
+        const cls = row.original.performance?.cls ?? null
+        return cls === null ? (
+          <span className="text-muted-foreground">{metricPlaceholder}</span>
+        ) : (
+          <RatingBadge rating={rateMetric('cls', cls)}>{formatMetric('cls', cls)}</RatingBadge>
+        )
+      },
     },
     {
       accessorKey: 'theme',
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          >
-            Tema
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
-      cell: ({ row }) => (
-        <Badge variant="outline">{row.getValue('theme')}</Badge>
-      ),
+      header: ({ column }) => <SortHeader column={column} label="Tema" />,
+      cell: ({ row }) => <Badge variant="outline">{row.original.theme}</Badge>,
     },
     {
-      accessorKey: 'provider',
-      header: 'Provider',
-      cell: ({ row }) => {
-        const provider = row.original.provider
-        return (
-          <div className="text-sm">
-            {provider ? (
-              <Badge variant="secondary">{provider.name}</Badge>
-            ) : (
-              <span className="text-muted-foreground">-</span>
-            )}
-          </div>
-        )
-      },
-    },
-    {
-      accessorKey: 'active',
-      header: 'Status',
-      cell: ({ row }) => (
-        <Badge variant={row.original.active ? 'default' : 'secondary'}>
-          {row.original.active ? 'Ativo' : 'Inativo'}
-        </Badge>
-      ),
-    },
-    {
-      accessorKey: 'created_at',
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-          >
-            Criado em
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        )
-      },
-      cell: ({ row }) => {
-        const dateValue = row.getValue('created_at') as string
-        const date = new Date(dateValue)
-        const isValidDate = dateValue && !isNaN(date.getTime())
-        return (
-          <div className="text-sm text-muted-foreground">
-            {isValidDate ? format(date, 'dd/MM/yyyy', { locale: ptBR }) : '-'}
-          </div>
-        )
-      },
+      id: 'provider',
+      accessorFn: (row) => row.provider?.name ?? '',
+      header: 'Provedor',
+      cell: ({ row }) =>
+        row.original.provider ? (
+          <Badge variant="secondary" className="whitespace-nowrap">{row.original.provider.name}</Badge>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
     },
     {
       id: 'actions',
-      header: 'Ações',
+      header: () => <span className="sr-only">Ações</span>,
       cell: ({ row }) => {
         const channel = row.original
-
         return (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="h-8 px-2 text-xs"
-            >
-              <Link
-                to="/channels/$channelId"
-                params={{ channelId: channel.id }}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0 data-[state=open]:bg-muted">
+                <span className="sr-only">Ações de {channel.name}</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>{channel.name}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/channels/$channelId" params={{ channelId: channel.id }}>
+                  Abrir performance
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEdit(channel)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleToggleActive(channel)}>
+                <Power className="mr-2 h-4 w-4" />
+                {channel.active ? 'Desativar' : 'Ativar'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  setChannelToDelete(channel)
+                  setDeleteDialogOpen(true)
+                }}
+                className="text-destructive"
               >
-                <Eye className="mr-1 h-3 w-3" />
-                Ver
-              </Link>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              asChild
-              className="h-8 px-2 text-xs"
-            >
-              <Link
-                to="/metrics"
-                search={{ channelId: channel.id }}
-              >
-                <BarChart3 className="mr-1 h-3 w-3" />
-                Métricas
-              </Link>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onEdit(channel)}
-              className="h-8 px-2 text-xs"
-            >
-              <Pencil className="mr-1 h-3 w-3" />
-              Editar
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="h-8 w-8 p-0 data-[state=open]:bg-muted"
-                >
-                  <span className="sr-only">Abrir menu</span>
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Mais ações</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handleToggleActive(channel)}>
-                  <Power className="mr-2 h-4 w-4" />
-                  {channel.active ? 'Desativar' : 'Ativar'}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => {
-                    setChannelToDelete(channel.id)
-                    setDeleteDialogOpen(true)
-                  }}
-                  className="text-destructive"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Deletar
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Deletar
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )
       },
     },
@@ -328,45 +335,38 @@ export function ChannelsTable({
   const table = useReactTable({
     data,
     columns,
+    // Selection is keyed by channel id, so it never points to another channel after filtering or sorting
+    getRowId: (row) => row.id,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    onSortingChange: setSorting,
+    onSortingChange: (updater) => onSortingChange(typeof updater === 'function' ? updater(sorting) : updater),
     onRowSelectionChange: (updater) => {
-      setRowSelection(updater)
-      // Update parent component with selected IDs
-      const newSelection =
-        typeof updater === 'function' ? updater(rowSelection) : updater
-      const selectedRowIds = Object.keys(newSelection).filter(
-        (key) => newSelection[key]
-      )
-      const selectedChannelIds = selectedRowIds.map(
-        (rowId) => data[Number.parseInt(rowId)].id
-      )
-      onSelectionChange(selectedChannelIds)
+      const next = typeof updater === 'function' ? updater(rowSelection) : updater
+      onSelectionChange(Object.keys(next).filter((id) => next[id]))
     },
+    initialState: { pagination: { pageSize: 25 } },
     state: {
       sorting,
       rowSelection,
     },
   })
 
+  const { pageIndex } = table.getState().pagination
+
   return (
     <>
       <div className="space-y-4">
-        <div className="rounded-md border">
+        <div className="overflow-x-auto rounded-md border">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
+                    <TableHead key={header.id} className="whitespace-nowrap">
                       {header.isPlaceholder
                         ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                        : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -375,27 +375,18 @@ export function ChannelsTable({
             <TableBody>
               {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && 'selected'}
-                  >
+                  <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
+                      <TableCell key={cell.id} className="py-2">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center"
-                  >
-                    Nenhum resultado encontrado.
+                  <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
+                    Nenhum canal com estes filtros.
                   </TableCell>
                 </TableRow>
               )}
@@ -403,26 +394,20 @@ export function ChannelsTable({
           </Table>
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            {table.getFilteredSelectedRowModel().rows.length} de{' '}
-            {table.getFilteredRowModel().rows.length} linha(s) selecionada(s).
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="text-sm text-muted-foreground tabular-nums">
+            {selectedIds.length > 0
+              ? `${selectedIds.length} de ${data.length} selecionado(s)`
+              : `${data.length} canal(is)`}
           </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground tabular-nums">
+              Página {pageIndex + 1} de {Math.max(1, table.getPageCount())}
+            </span>
+            <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
               Anterior
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
+            <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
               Próxima
             </Button>
           </div>
@@ -432,10 +417,10 @@ export function ChannelsTable({
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogTitle>Deletar {channelToDelete?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. Isso irá deletar permanentemente
-              o canal e todas as páginas e métricas associadas.
+              Esta ação não pode ser desfeita. O canal, as páginas e todo o histórico de métricas serão apagados.
+              Para só parar de coletar, use Desativar.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -444,7 +429,7 @@ export function ChannelsTable({
               onClick={() => channelToDelete && handleDelete(channelToDelete)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Deletar
+              Deletar canal
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

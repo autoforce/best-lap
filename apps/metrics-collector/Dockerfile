@@ -1,19 +1,9 @@
 # Dockerfile for Metrics Collector application
 # Multi-stage build optimized for EC2 instances
 
-# Stage 1: Base with Chromium
-FROM node:18-alpine AS base
-RUN apk add --no-cache \
-    chromium \
-    nss \
-    freetype \
-    freetype-dev \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont
-
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+# Stage 1: Base
+# Metrics come from the PageSpeed Insights API, so no local browser is needed
+FROM node:22-alpine AS base
 
 # Stage 2: Dependencies
 FROM base AS deps

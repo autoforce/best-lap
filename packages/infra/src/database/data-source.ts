@@ -19,16 +19,23 @@ import { CreateProviderTable1737562800000 } from './migration/1737562800000-Crea
 import { AddProviderIdToPages1737562800001 } from './migration/1737562800001-AddProviderIdToPages';
 import { AddProviderIdToChannels1737562800002 } from './migration/1737562800002-AddProviderIdToChannels';
 import { CreateUsersTable1740000000000 } from './migration/1740000000000-CreateUsersTable';
+import { AddSourceToChannels1792713600000 } from './migration/1792713600000-AddSourceToChannels';
+import { AddChannelAndPageIndexes1792713700000 } from './migration/1792713700000-AddChannelAndPageIndexes';
+import { AlignAggregateRefreshWithRetention1792713800000 } from './migration/1792713800000-AlignAggregateRefreshWithRetention';
+import { CreatePageInsightsTable1792713900000 } from './migration/1792713900000-CreatePageInsightsTable';
 
 export const dataSource = new DataSource({
   type: 'postgres',
   host: env.DB_HOST,
-  port: 5432,
+  port: env.DB_PORT,
   username: env.DB_USER,
   password: env.DB_PASSWORD,
   database: env.DB_NAME,
   synchronize: false,
-  logging: true,
+  // Logging every query floods stdout in production; errors and warnings are enough
+  logging: env.DB_LOGGING ? true : ['error', 'warn'],
+  // node-postgres pool size (TypeORM's default is 10 per process)
+  extra: { max: env.DB_POOL_MAX },
   migrationsTransactionMode: 'each',
   // Use direct imports for more reliable entity loading
   entities: [Channel, Page, Metric, Provider, User],
@@ -44,5 +51,9 @@ export const dataSource = new DataSource({
     AddProviderIdToPages1737562800001,
     AddProviderIdToChannels1737562800002,
     CreateUsersTable1740000000000,
+    AddSourceToChannels1792713600000,
+    AddChannelAndPageIndexes1792713700000,
+    AlignAggregateRefreshWithRetention1792713800000,
+    CreatePageInsightsTable1792713900000,
   ]
 });

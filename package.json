@@ -21,7 +21,8 @@
     "db:psql": "docker-compose -f docker-compose.db.yml exec timescaledb psql -U best_lap -d best_lap_db",
     "ec2:logs": "docker-compose -f docker-compose.ec2.yml logs -f",
     "ec2:ps": "docker-compose -f docker-compose.ec2.yml ps",
-    "ec2:down": "docker-compose -f docker-compose.ec2.yml down"
+    "ec2:down": "docker-compose -f docker-compose.ec2.yml down",
+    "test": "turbo run test"
   },
   "dependencies": {
     "turbo": "^2.5.4"

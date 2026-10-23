@@ -1,2 +1,2 @@
 export * from './make-collect-page-metrics-service'
-export * from './collect-page-metrics-dispatcher'
+export * from './make-enqueue-collection-use-case'

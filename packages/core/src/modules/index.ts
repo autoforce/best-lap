@@ -4,3 +4,5 @@ export * from './page';
 export * from './provider';
 export * from './user';
 export * from './sync';
+export * from './insights';
+

@@ -4,11 +4,13 @@ import { FastifyAdapter } from "@bull-board/fastify";
 import { Queue } from "bullmq";
 import Redis from "ioredis";
 
+const KNOWN_QUEUES = ["reference", "client"];
+
 export async function setupQueues(connection: Redis, serverAdapter: FastifyAdapter) {
   try {
+    // Known queues always show up, even before their first job; others are discovered in Redis
     const keys = await connection.keys('bull:*:meta');
-    const queueNames = keys
-      .map(key => key.split(':')[1])
+    const queueNames = [...KNOWN_QUEUES, ...keys.map(key => key.split(':')[1])]
       .filter((name, index, arr) => arr.indexOf(name) === index);
 
     console.log('Found queues:', queueNames);

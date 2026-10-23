@@ -1,5 +1,6 @@
-import { connectToDatabase } from '@best-lap/infra';
+import { closeLockClient, connectToDatabase, queuesMap } from '@best-lap/infra';
 import { collectMetrics } from './jobs/collect-metrics'
+import { slotKey } from './jobs/cron/schedule-task'
 
 async function initCollect() {
   try {
@@ -11,8 +12,10 @@ async function initCollect() {
 
   try {
     console.log('starting collect')
-    await collectMetrics()
-    console.log('collect completed successfully')
+    await collectMetrics(`manual_${slotKey()}`)
+    console.log('collect enqueued successfully')
+    await Promise.all(Object.values(queuesMap).map((queue) => queue.close()))
+    await closeLockClient()
     process.exit(0)
   } catch (err) {
     console.log("error during execution: ", err)

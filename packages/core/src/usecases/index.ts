@@ -5,3 +5,5 @@ export * from './providers';
 export * from './auth';
 export * from './users';
 export * from './sync';
+export * from './collection';
+export * from './insights';

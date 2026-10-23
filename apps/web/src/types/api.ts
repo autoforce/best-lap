@@ -128,7 +128,7 @@ export interface ChannelMetricGrouped {
   avg_cls: number
 }
 
-export type Period = 'hourly' | 'daily' | 'weekly' | 'monthly'
+export type Period = 'hourly' | 'daily' | 'weekly'
 
 export type PerformanceMetricKey =
   | 'score'
@@ -150,6 +150,20 @@ export interface ApiError {
   statusCode: number
 }
 
+// Collection status (freshness of the data shown)
+export interface CollectionStatus {
+  last_collected_at: string | null
+  next_run_at: string | null
+  schedule: string
+  strategy: 'mobile' | 'desktop'
+  queue: {
+    waiting: number
+    active: number
+    delayed: number
+    failed: number
+  } | null
+}
+
 // Trigger Collection types
 export interface TriggerCollectionResponse {
   message: string
@@ -160,3 +174,74 @@ export interface TriggerCollectionResponse {
 
 // Auth types
 export * from './auth'
+
+// Insights (Lighthouse findings, attention items, per-page metrics)
+export interface LighthouseFinding {
+  id: string
+  title: string
+  description?: string
+  display_value?: string
+  score: number | null
+  savings_ms?: number
+  savings_bytes?: number
+  metric_savings?: Record<string, number>
+}
+
+export interface FieldData {
+  category?: string
+  lcp_ms?: number
+  cls?: number
+  inp_ms?: number
+  fcp_ms?: number
+  ttfb_ms?: number
+  origin_fallback?: boolean
+}
+
+export interface PageInsights {
+  page_id: string
+  page_name: string
+  page_path: string
+  channel_id: string
+  channel_name: string
+  theme: string
+  collected_at: string
+  lighthouse_version?: string
+  opportunities: LighthouseFinding[]
+  diagnostics: LighthouseFinding[]
+  field_data?: FieldData | null
+}
+
+export interface CommonOpportunity {
+  id: string
+  title: string
+  description?: string
+  channels_affected: number
+  pages_affected: number
+  avg_savings_ms?: number
+  max_savings_ms?: number
+  avg_savings_bytes?: number
+  top_channels: Array<{ id: string; name: string; savings_ms?: number }>
+}
+
+export type AttentionKind = 'theme_regression' | 'regression' | 'entered_poor' | 'stale' | 'no_home'
+
+export interface AttentionItem {
+  id: string
+  kind: AttentionKind
+  severity: 'poor' | 'warn'
+  title: string
+  detail: string
+  channel_id?: string
+  channel_name?: string
+  theme?: string
+  metric?: 'score' | 'lcp' | 'cls'
+  current?: number
+  baseline?: number
+  channels?: Array<{ id: string; name: string }>
+}
+
+export interface PageMetricGrouped extends AverageMetric {
+  page_id: string
+  page_name: string
+  page_path: string
+}

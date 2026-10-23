@@ -59,8 +59,8 @@ export function ProvidersTable({ data, onEdit }: ProvidersTableProps) {
     try {
       await deleteProvider.mutateAsync(id)
       toast({
-        title: 'Provider deletado',
-        description: 'Provider deletado com sucesso.',
+        title: 'Provedor deletado',
+        description: 'O provedor foi removido. Os canais ligados a ele ficaram sem provedor.',
       })
       setDeleteDialogOpen(false)
       setProviderToDelete(null)

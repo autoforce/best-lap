@@ -1,190 +1,107 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Trophy, AlertCircle, ArrowUp, ArrowDown } from 'lucide-react'
+import { Trophy, AlertCircle } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useChannelRankings, type ChannelPerformance } from '@/hooks/use-channel-rankings'
-import type { Channel, Period } from '@/types/api'
+import type { ChannelMetricGrouped } from '@/types/api'
+import { rateMetric } from '@/lib/metrics'
+import { RatingBadge } from '@/components/metrics/rating-badge'
 
 interface TopBottomPerformersCardProps {
-  channels: Channel[]
-  period: Period
+  rows: ChannelMetricGrouped[]
+  channelIds?: Set<string>
+  periodLabel: string
   isLoading?: boolean
 }
 
-function getScoreColor(score: number): string {
-  if (score >= 90) return 'text-green-600 dark:text-green-400'
-  if (score >= 70) return 'text-yellow-600 dark:text-yellow-400'
-  return 'text-red-600 dark:text-red-400'
-}
-
-interface PerformerItemProps {
-  rank: number
-  performer: ChannelPerformance
-}
-
-function PerformerItem({ rank, performer }: PerformerItemProps) {
-  const scoreColor = getScoreColor(performer.avgScore)
-  const isPositive = performer.diffFromAverage >= 0
-  const ArrowIcon = isPositive ? ArrowUp : ArrowDown
-  const diffColor = isPositive
-    ? 'text-green-600 dark:text-green-400'
-    : 'text-red-600 dark:text-red-400'
-  const badgeBg = isPositive
-    ? 'bg-green-100 dark:bg-green-950'
-    : 'bg-red-100 dark:bg-red-950'
+function PerformerItem({ rank, performer }: { rank: number; performer: ChannelPerformance }) {
+  const diff = Math.round(performer.diffFromAverage)
 
   return (
-    <div className="flex items-center justify-between py-3">
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <span className="text-sm font-medium text-muted-foreground w-4">
-          {rank}
-        </span>
-        <div className="flex-1 min-w-0">
-          <p className="font-medium truncate">{performer.channelName}</p>
-          <Badge
-            variant="secondary"
-            className={`mt-1 text-xs ${badgeBg} ${diffColor}`}
-          >
-            {isPositive ? '+' : ''}
-            {performer.diffFromAverage.toFixed(0)} da média
-          </Badge>
+    <Link
+      to="/channels/$channelId"
+      params={{ channelId: performer.channelId }}
+      className="flex items-center justify-between gap-3 rounded-md px-2 py-3 hover:bg-accent"
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <span className="w-4 text-sm font-medium text-muted-foreground tabular-nums">{rank}</span>
+        <div className="min-w-0">
+          <p className="truncate font-medium">{performer.channelName}</p>
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {diff === 0 ? 'Na média' : `${diff > 0 ? '+' : '−'}${Math.abs(diff)} pts da média`}
+          </p>
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <span className={`text-lg font-bold ${scoreColor}`}>
-          {performer.avgScore.toFixed(0)}
-          <span className="text-xs font-normal text-muted-foreground">/100</span>
-        </span>
-        <ArrowIcon className={`h-4 w-4 ${diffColor}`} />
-      </div>
-    </div>
+      <RatingBadge rating={rateMetric('score', performer.avgScore)} className="text-sm">
+        {Math.round(performer.avgScore)}
+      </RatingBadge>
+    </Link>
   )
 }
 
-interface PerformersListProps {
-  performers: ChannelPerformance[]
-  type: 'top' | 'bottom'
-  isLoading: boolean
-}
-
-function PerformersList({ performers, type, isLoading }: PerformersListProps) {
+function PerformersList({ performers, type }: { performers: ChannelPerformance[]; type: 'top' | 'bottom' }) {
+  if (performers.length === 0) return null
   const Icon = type === 'top' ? Trophy : AlertCircle
-  const title = type === 'top' ? 'Melhores Performances' : 'Performances Críticas'
-  const iconColor = type === 'top'
-    ? 'text-green-600 dark:text-green-400'
-    : 'text-red-600 dark:text-red-400'
-
-  if (isLoading) {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Icon className={`h-5 w-5 ${iconColor}`} />
-          <h3 className="font-semibold">{title}</h3>
-        </div>
-        {[1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-16 w-full" />
-        ))}
-      </div>
-    )
-  }
-
-  if (performers.length === 0) {
-    return null
-  }
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className={`h-5 w-5 ${iconColor}`} />
-        <h3 className="font-semibold">{title}</h3>
+      <div className="mb-1 flex items-center gap-2">
+        <Icon className={`h-5 w-5 ${type === 'top' ? 'text-good' : 'text-poor'}`} />
+        <h3 className="font-semibold">{type === 'top' ? 'Melhores performances' : 'Piores performances'}</h3>
       </div>
       <div className="divide-y">
         {performers.map((performer, index) => (
-          <PerformerItem
-            key={performer.channelId}
-            rank={index + 1}
-            performer={performer}
-          />
+          <PerformerItem key={performer.channelId} rank={index + 1} performer={performer} />
         ))}
       </div>
     </div>
   )
 }
 
-export function TopBottomPerformersCard({
-  channels,
-  period,
-  isLoading: externalLoading,
-}: TopBottomPerformersCardProps) {
-  const {
-    topPerformers,
-    bottomPerformers,
-    isLoading: rankingsLoading,
-    isError,
-  } = useChannelRankings(channels, period)
-
-  const isLoading = externalLoading || rankingsLoading
-  const hasData = topPerformers.length > 0 || bottomPerformers.length > 0
+export function TopBottomPerformersCard({ rows, channelIds, periodLabel, isLoading }: TopBottomPerformersCardProps) {
+  const { topPerformers, bottomPerformers } = useChannelRankings(rows, channelIds)
+  const hasData = topPerformers.length > 0
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Ranking de Performance</CardTitle>
+        <CardTitle>Ranking de performance</CardTitle>
+        <p className="text-sm text-muted-foreground">Score médio da home nos {periodLabel}</p>
       </CardHeader>
       <CardContent className="space-y-6">
         {isLoading ? (
-          <>
-            <PerformersList performers={[]} type="top" isLoading={true} />
-            <div className="border-t" />
-            <PerformersList performers={[]} type="bottom" isLoading={true} />
-          </>
-        ) : isError ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <AlertCircle className="h-12 w-12 text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">
-              Erro ao carregar ranking de performance
-            </p>
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
           </div>
         ) : !hasData ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <AlertCircle className="h-12 w-12 text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">
-              Dados insuficientes para ranking
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              É necessário pelo menos 2 canais com métricas coletadas
+            <AlertCircle className="mb-2 h-10 w-10 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">Ainda não há dados para montar o ranking.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              É preciso ter pelo menos 2 canais ativos com coletas neste período.
             </p>
           </div>
         ) : (
           <>
-            <PerformersList
-              performers={topPerformers}
-              type="top"
-              isLoading={false}
-            />
+            <PerformersList performers={topPerformers} type="top" />
             {bottomPerformers.length > 0 && (
               <>
                 <div className="border-t" />
-                <PerformersList
-                  performers={bottomPerformers}
-                  type="bottom"
-                  isLoading={false}
-                />
+                <PerformersList performers={bottomPerformers} type="bottom" />
               </>
             )}
+            <div className="border-t pt-4">
+              <Link
+                to="/channels"
+                search={{ sort: 'score' } as never}
+                className="flex items-center justify-center text-sm text-primary hover:underline"
+              >
+                Ver todos os canais, do pior para o melhor →
+              </Link>
+            </div>
           </>
-        )}
-
-        {hasData && !isLoading && (
-          <div className="pt-4 border-t">
-            <Link
-              to="/channels"
-              className="text-sm text-primary hover:underline flex items-center justify-center"
-            >
-              Ver Todos os Canais →
-            </Link>
-          </div>
         )}
       </CardContent>
     </Card>

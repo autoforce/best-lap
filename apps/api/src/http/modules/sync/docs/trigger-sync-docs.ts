@@ -40,32 +40,13 @@ export const triggerSyncDocs = {
   description: 'Manually trigger synchronization of channels and pages from Autoforce API',
   tags: ['sync'],
   response: {
-    200: {
-      description: 'Synchronization completed successfully',
-      content: {
-        'application/json': {
-          schema: successResponseSchema,
-        },
-      },
-    },
-    500: {
-      description: 'Internal Server Error - Synchronization failed',
-      content: {
-        'application/json': {
-          schema: errorResponseSchema,
-        },
-      },
-    },
-    503: {
-      description: 'Service Unavailable - Sync disabled or not configured',
-      content: {
-        'application/json': {
-          schema: z.object({
-            error: z.string(),
-            message: z.string(),
-          }),
-        },
-      },
-    },
+    200: successResponseSchema.describe('Synchronization completed successfully'),
+    500: errorResponseSchema.describe('Internal Server Error - Synchronization failed'),
+    503: z
+      .object({
+        error: z.string(),
+        message: z.string(),
+      })
+      .describe('Service Unavailable - Sync disabled or not configured'),
   },
 }

@@ -65,6 +65,14 @@ services:
       - key: JWT_EXPIRES_IN
         value: 24h
 
+      # Machine-to-machine key for /sync/* routes (Make scenarios)
+      - key: SYNC_API_KEY
+        generateValue: true
+
+      # Same timezone as the collector, for the "next collection" indicator
+      - key: CRON_TIMEZONE
+        value: America/Sao_Paulo
+
       # CORS
       - key: CORS_ORIGIN
         value: "*"  # Update to specific domain in production
@@ -141,17 +149,22 @@ services:
       - key: GOOGLE_API_KEY
         sync: false  # MUST set manually in Render UI
 
-      # Cron schedule
+      # Cron schedule (evaluated in CRON_TIMEZONE)
       - key: COLLECT_METRICS_CRON_EXPRESSION
         value: "0 8,14,20 * * *"  # 8am, 2pm, 8pm daily
+      - key: CRON_TIMEZONE
+        value: America/Sao_Paulo
+
+      # Slack alerts and weekly digest (optional)
+      - key: SLACK_WEBHOOK_URL
+        sync: false  # Incoming webhook URL; leave empty to disable alerts
+      - key: DASHBOARD_URL
+        sync: false  # Dashboard URL used in alert links, e.g. https://best-lap.onrender.com
 
       # Worker settings
       - key: WORKER_CONCURRENCY
         value: 10
 
-      # Optional seed URL
-      - key: SEED_THEMES_URL
-        sync: false  # Optional
 
   # ============================================
   # Dashboard Frontend (Static Site)
