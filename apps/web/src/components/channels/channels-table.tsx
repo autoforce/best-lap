@@ -280,7 +280,11 @@ export function ChannelsTable({
       header: 'Provedor',
       cell: ({ row }) =>
         row.original.provider ? (
-          <Badge variant="secondary" className="whitespace-nowrap">{row.original.provider.name}</Badge>
+          <Link to="/providers/$providerId" params={{ providerId: row.original.provider.id }}>
+            <Badge variant="secondary" className="whitespace-nowrap hover:bg-secondary/60">
+              {row.original.provider.name}
+            </Badge>
+          </Link>
         ) : (
           <span className="text-muted-foreground">—</span>
         ),
