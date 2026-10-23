@@ -6,8 +6,11 @@ export const makeQueue = (queueName: QueueType): Queue => {
   return new Queue(queueName, {
     connection: redisOptions,
     defaultJobOptions: {
-      removeOnComplete: { count: 100 },
-      removeOnFail: { count: 50 },
+      // PageSpeed Insights fails transiently (timeouts, 429/500); retry with growing delays
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 2 * 60 * 1000 },
+      removeOnComplete: { count: 500 },
+      removeOnFail: { count: 500 },
     },
   });
 }

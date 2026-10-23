@@ -14,7 +14,8 @@ export const adaptLighthouseResultToMetricPattern = (lighthouseResult: Lighthous
   const metrics = {
     seo: seoScore * 100,
     score: performanceScore * 100,
-    response_time: responseTime,
+    // The column is an integer; Lighthouse reports fractional milliseconds
+    response_time: Math.round(responseTime),
     fcp,
     si,
     lcp,

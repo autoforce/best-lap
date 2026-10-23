@@ -5,3 +5,4 @@ export * from './list-channel.docs';
 export * from './list-average-for-all-channels.docs';
 export * from './list-all-channels-metrics-grouped.docs';
 export * from './trigger-collection.docs';
+export * from './collection-status.docs';

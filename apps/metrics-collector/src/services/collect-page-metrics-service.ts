@@ -1,4 +1,12 @@
-import { MetricEntityUnchecked, MetricsRepository, PerformanceResult } from '@best-lap/core';
+import {
+  MetricEntityUnchecked,
+  MetricsRepository,
+  PageInsightsRepository,
+  PerformanceResult,
+  extractFieldData,
+  extractLighthouseFindings,
+} from '@best-lap/core';
+import { env } from '@best-lap/env';
 import { setUpQuery } from '../utils/set-up-query';
 import { adaptLighthouseResultToMetricPattern } from '../utils/adapt-lighthouse-report-to-metric-pattern';
 
@@ -8,34 +16,61 @@ export type CollectPageMetricsServiceParams = {
 }
 
 export class CollectPageMetricsService {
-  constructor(private metricsRepository: MetricsRepository) { }
+  constructor(
+    private metricsRepository: MetricsRepository,
+    private pageInsightsRepository: PageInsightsRepository,
+  ) { }
 
+  /**
+   * Runs PageSpeed Insights for one page and stores the metrics and the Lighthouse findings.
+   * Throws on any failure so the queue retries the job and records it as failed.
+   */
   async execute({ pageUrl, pageId }: CollectPageMetricsServiceParams) {
     const url = setUpQuery(pageUrl)
-    const response = await fetch(url)
+
+    let response: Response
+    try {
+      response = await fetch(url, { signal: AbortSignal.timeout(env.PSI_TIMEOUT_MS) })
+    } catch (error) {
+      const reason = error instanceof Error && error.name === 'TimeoutError' ? `timeout after ${env.PSI_TIMEOUT_MS}ms` : String(error)
+      throw new Error(`PageSpeed Insights request failed for ${pageUrl}: ${reason}`)
+    }
 
     if (!response.ok) {
-      const responseData = await response.json()
-      throw new Error(`Network response was not ok, status: ${response.status} - Data: ${JSON.stringify(responseData)}`);
+      const body = await response.text().catch(() => '')
+      throw new Error(`PageSpeed Insights returned ${response.status} for ${pageUrl}: ${body.slice(0, 500)}`)
     }
 
     const responseData = await response.json() as PerformanceResult
 
     if (!responseData?.lighthouseResult) {
-      const logMessage = `ERROR - RESULT IS UNAVAILABLE - PAGE: ${pageUrl} - RESPONSE: ${JSON.stringify(responseData)}`
-      console.log(logMessage)
-
-      return null
+      throw new Error(`PageSpeed Insights returned no Lighthouse result for ${pageUrl}`)
     }
 
+    const collectedAt = new Date()
     const metrics = adaptLighthouseResultToMetricPattern(responseData.lighthouseResult)
 
     const data: MetricEntityUnchecked = {
       page_id: pageId,
-      time: new Date(),
+      time: collectedAt,
       ...metrics,
     }
 
     await this.metricsRepository.create(data)
+
+    // Findings are a bonus: a parsing problem must not lose the metrics already saved
+    try {
+      const findings = extractLighthouseFindings(responseData.lighthouseResult)
+      await this.pageInsightsRepository.upsert({
+        page_id: pageId,
+        collected_at: collectedAt,
+        lighthouse_version: findings.lighthouseVersion,
+        opportunities: findings.opportunities,
+        diagnostics: findings.diagnostics,
+        field_data: extractFieldData(responseData),
+      })
+    } catch (error) {
+      console.error(`Could not store Lighthouse findings for page ${pageId}:`, error)
+    }
   }
 }

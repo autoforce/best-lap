@@ -7,3 +7,4 @@ export * from './list-all-channels-metrics-grouped';
 export * from './trigger-collection-all';
 export * from './trigger-collection-channel';
 export * from './trigger-collection-page';
+export * from './get-collection-status';

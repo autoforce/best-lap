@@ -29,7 +29,8 @@ export const makeWorker = ({ queueName, processor, options }: MakeWorkerParams) 
   )
 
   worker.on('failed', (job, err) => {
-    console.error(`Job ${job?.id} falhou com o erro: `, err)
+    const attempts = job ? ` (tentativa ${job.attemptsMade}/${job.opts.attempts ?? 1})` : ''
+    console.error(`Job ${job?.id} falhou${attempts}: ${err.message}`)
   })
 
   worker.on('error', err => {

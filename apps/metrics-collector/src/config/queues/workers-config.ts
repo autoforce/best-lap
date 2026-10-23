@@ -13,16 +13,8 @@ const collectPageMetricsService = makeCollectPageMetricsService();
 
 export const metricsWorkersConfig = Object.values(queuesMap).map((queue) => ({
   queueName: queue.name as QueueType,
+  // Errors propagate on purpose: BullMQ retries the job and shows it as failed in the admin panel
   processor: async (job: Job) => {
-    const { pageUrl, pageId } = job.data;
-
-    try {
-      await collectPageMetricsService.execute({ pageUrl, pageId });
-    } catch (error) {
-      console.error(
-        `[${queue.name}] Failed to collect metrics for page with ID ${pageId} and URL (${pageUrl})`,
-        error
-      );
-    }
+    await collectPageMetricsService.execute(job.data);
   },
 }));

@@ -17,7 +17,7 @@ export async function listChannelMetrics(request: FastifyRequest, reply: Fastify
     })
 
     if (!page) {
-      return reply.code(404).send({ error: 'Page not found' });
+      return reply.code(404).send({ message: 'Channel has no home page (/)' });
     }
 
     const getChannelMetricsUseCase = new GetPageMetricsUseCase(

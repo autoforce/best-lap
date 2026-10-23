@@ -9,7 +9,8 @@ import {
   listChannelMetrics,
   triggerCollectionAll,
   triggerCollectionChannel,
-  triggerCollectionPage
+  triggerCollectionPage,
+  getCollectionStatus
 } from "./controllers"
 import {
   listAverageChannelsMetricsByThemeDocs,
@@ -20,7 +21,8 @@ import {
   listAllChannelsMetricsGroupedDocs,
   triggerCollectionAllDocs,
   triggerCollectionChannelDocs,
-  triggerCollectionPageDocs
+  triggerCollectionPageDocs,
+  getCollectionStatusDocs
 } from "./docs"
 
 export async function metricsRoutes(server: FastifyInstance) {
@@ -50,6 +52,14 @@ export async function metricsRoutes(server: FastifyInstance) {
     )
 
   // GET routes
+  server
+    .withTypeProvider<ZodTypeProvider>()
+    .get(
+      '/status',
+      getCollectionStatusDocs,
+      getCollectionStatus
+    )
+
   server
     .withTypeProvider<ZodTypeProvider>()
     .get(
