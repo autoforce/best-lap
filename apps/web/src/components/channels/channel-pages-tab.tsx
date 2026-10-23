@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import { Plus, Pencil, Trash2, ExternalLink, Activity } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,10 +26,16 @@ import { PageDialog } from './page-dialog'
 import { usePages, useDeletePage } from '@/hooks/use-pages'
 import { useToast } from '@/hooks/use-toast'
 import type { Page, Channel } from '@/types/api'
-import { format } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
 import { TriggerCollectionDialog } from '@/components/trigger-collection-dialog'
-import { useTriggerCollectionPage } from '@/hooks/use-metrics'
+import { useChannelPagesMetrics, useTriggerCollectionPage } from '@/hooks/use-metrics'
+import { buildChannelSnapshots } from '@/lib/channel-performance'
+import { formatMetric, rateMetric } from '@/lib/metrics'
+import { RatingBadge } from '@/components/metrics/rating-badge'
+import { DeltaBadge } from '@/components/metrics/delta-badge'
+import { Sparkline } from '@/components/metrics/sparkline'
+
+// Daily rows of the last 30 days feed the score, trend and change of each page
+const LIST_PERIOD = { range: '30d', granularity: 'daily' } as const
 
 interface ChannelPagesTabProps {
   channel: Channel
@@ -45,6 +52,16 @@ export function ChannelPagesTab({ channel }: ChannelPagesTabProps) {
   const deletePage = useDeletePage()
   const { mutate: triggerCollectionPage, isPending: isCollecting } =
     useTriggerCollectionPage()
+  const pagesMetrics = useChannelPagesMetrics(channel.id, LIST_PERIOD)
+
+  // Same snapshot as the channel list, keyed by page instead of channel
+  const snapshots = useMemo(
+    () =>
+      buildChannelSnapshots(
+        (pagesMetrics.data?.all ?? []).map((row) => ({ ...row, channel_id: row.page_id, channel_name: row.page_name }))
+      ),
+    [pagesMetrics.data]
+  )
 
   const handleCreate = () => {
     setSelectedPage(null)
@@ -86,12 +103,11 @@ export function ChannelPagesTab({ channel }: ChannelPagesTabProps) {
     }
   }
 
+  // internal_link carries the protocol; domain may not, which produced relative links
   const getFullUrl = (path: string) => {
-    const domain = channel.domain.endsWith('/')
-      ? channel.domain.slice(0, -1)
-      : channel.domain
+    const base = channel.internal_link.replace(/\/+$/, '')
     const cleanPath = path.startsWith('/') ? path : `/${path}`
-    return `${domain}${cleanPath}`
+    return `${base}${cleanPath}`
   }
 
   if (isLoading) {
@@ -108,9 +124,10 @@ export function ChannelPagesTab({ channel }: ChannelPagesTabProps) {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-medium">Páginas do Canal</h3>
+            <h3 className="text-lg font-medium">Páginas do canal</h3>
             <p className="text-sm text-muted-foreground">
-              Gerencie as páginas que serão monitoradas neste canal.
+              Todas são medidas a cada coleta agendada. Score e LCP: média dos últimos 7 dias; variação contra os 7
+              dias anteriores.
             </p>
           </div>
           <Button onClick={handleCreate}>
@@ -144,47 +161,79 @@ export function ChannelPagesTab({ channel }: ChannelPagesTabProps) {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Caminho</TableHead>
-                    <TableHead>URL Completa</TableHead>
-                    <TableHead>Criado em</TableHead>
+                    <TableHead>Página</TableHead>
+                    <TableHead>Score 7d</TableHead>
+                    <TableHead>30 dias</TableHead>
+                    <TableHead>Variação</TableHead>
+                    <TableHead>LCP</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pages.map((page) => (
+                  {pages.map((page) => {
+                    const snapshot = snapshots.get(page.id)
+                    const placeholder = pagesMetrics.isLoading ? '…' : '—'
+                    return (
                     <TableRow key={page.id}>
-                      <TableCell className="font-medium">{page.name}</TableCell>
                       <TableCell>
-                        <code className="rounded bg-muted px-2 py-1 text-sm">
-                          {page.path}
-                        </code>
+                        <div className="min-w-[180px]">
+                          <p className="font-medium">{page.name}</p>
+                          <a
+                            href={getFullUrl(page.path)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            <code>{page.path}</code>
+                            <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                          </a>
+                        </div>
                       </TableCell>
                       <TableCell>
-                        <a
-                          href={getFullUrl(page.path)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-sm text-primary hover:underline"
-                        >
-                          <span className="max-w-[200px] truncate">
-                            {getFullUrl(page.path)}
-                          </span>
-                          <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                        </a>
+                        {snapshot?.score != null ? (
+                          <RatingBadge rating={rateMetric('score', snapshot.score)} className="text-sm">
+                            {formatMetric('score', snapshot.score)}
+                          </RatingBadge>
+                        ) : (
+                          <span className="text-muted-foreground">{placeholder}</span>
+                        )}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {page.created_at && !isNaN(new Date(page.created_at).getTime())
-                          ? format(new Date(page.created_at), 'dd/MM/yyyy', {
-                              locale: ptBR,
-                            })
-                          : '-'}
+                      <TableCell>
+                        <Sparkline
+                          values={snapshot?.trend ?? []}
+                          tone={snapshot?.scoreDelta?.improved === false ? 'poor' : snapshot?.scoreDelta?.improved ? 'good' : 'neutral'}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <DeltaBadge delta={snapshot?.scoreDelta ?? null} />
+                      </TableCell>
+                      <TableCell>
+                        {snapshot?.lcp != null ? (
+                          <RatingBadge rating={rateMetric('lcp', snapshot.lcp)}>{formatMetric('lcp', snapshot.lcp)}</RatingBadge>
+                        ) : (
+                          <span className="text-muted-foreground">{placeholder}</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="sm" asChild className="h-8 px-2 text-xs">
+                            <Link to="/channels/$channelId" params={{ channelId: channel.id }} search={{ page: page.id } as never}>
+                              Performance
+                            </Link>
+                          </Button>
+                          <Button variant="ghost" size="sm" asChild className="h-8 px-2 text-xs">
+                            <Link
+                              to="/channels/$channelId"
+                              params={{ channelId: channel.id }}
+                              search={{ tab: 'fix', page: page.id } as never}
+                            >
+                              O que corrigir
+                            </Link>
+                          </Button>
                           <TriggerCollectionDialog
                             scope="page"
                             pageName={page.name}
@@ -196,12 +245,7 @@ export function ChannelPagesTab({ channel }: ChannelPagesTabProps) {
                             }
                             isPending={isCollecting}
                           >
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              title="Coletar métricas desta página"
-                              className="border-blue-600 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                            >
+                            <Button variant="ghost" size="sm" title="Coletar agora esta página" aria-label={`Coletar agora ${page.name}`}>
                               <Activity className="h-4 w-4" />
                             </Button>
                           </TriggerCollectionDialog>
@@ -210,6 +254,7 @@ export function ChannelPagesTab({ channel }: ChannelPagesTabProps) {
                             size="sm"
                             onClick={() => handleEdit(page)}
                             title="Editar página"
+                            aria-label={`Editar ${page.name}`}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -221,15 +266,18 @@ export function ChannelPagesTab({ channel }: ChannelPagesTabProps) {
                               setDeleteDialogOpen(true)
                             }}
                             title="Deletar página"
+                            aria-label={`Deletar ${page.name}`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    )
+                  })}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         )}

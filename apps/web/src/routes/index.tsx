@@ -8,7 +8,6 @@ import {
 import { DashboardPage } from '@/pages/dashboard'
 import { ChannelsPage } from '@/pages/channels'
 import { ChannelDetailsPage } from '@/pages/channel-details'
-import { PagesPage } from '@/pages/pages'
 import { MetricsPage } from '@/pages/metrics'
 import { ComparePage } from '@/pages/compare'
 import { ThemesPage } from '@/pages/themes'
@@ -16,6 +15,7 @@ import { ThemeDetailsPage } from '@/pages/theme-details'
 import { ProvidersPage } from '@/pages/providers'
 import { LoginPage } from '@/pages/login'
 import { UsersPage } from '@/pages/users'
+import { GuidePage } from '@/pages/guide'
 
 // Helper to check authentication
 function isAuthenticated() {
@@ -86,15 +86,12 @@ const metricsRoute = createRoute({
   },
 })
 
-// Pages route (protected)
+// The old placeholder page for pages management now points to the channel list
 const pagesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/pages',
-  component: PagesPage,
   beforeLoad: () => {
-    if (!isAuthenticated()) {
-      throw redirect({ to: '/login' })
-    }
+    throw redirect({ to: '/channels' })
   },
 })
 
@@ -157,6 +154,18 @@ const usersRoute = createRoute({
   },
 })
 
+// Guide route (protected)
+const guideRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/guide',
+  component: GuidePage,
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+})
+
 // Create route tree
 const routeTree = rootRoute.addChildren([
   loginRoute,
@@ -170,6 +179,7 @@ const routeTree = rootRoute.addChildren([
   themeDetailsRoute,
   providersRoute,
   usersRoute,
+  guideRoute,
 ])
 
 // Create router

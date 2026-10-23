@@ -7,70 +7,52 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { AverageMetric } from '@/types/api'
+import { RatingBadge } from '@/components/metrics/rating-badge'
+import { MetricInfo } from '@/components/metrics/metric-info'
+import {
+  METRICS,
+  formatMetric,
+  isBetter,
+  rateMetric,
+  type MetricKey,
+  type MetricSummary,
+} from '@/lib/metrics'
 
 interface ComparisonTableProps {
   data: {
     channelId: string
     channelName: string
-    latestMetric: AverageMetric | null
+    summary: MetricSummary
     color: string
   }[]
   isLoading?: boolean
 }
 
-function getScoreBadgeVariant(
-  score: number
-): 'default' | 'secondary' | 'destructive' {
-  if (score >= 90) return 'default'
-  if (score >= 70) return 'secondary'
-  return 'destructive'
-}
+const TABLE_METRICS: MetricKey[] = ['score', 'seo', 'lcp', 'cls', 'tbt', 'fcp', 'si', 'response_time']
 
 export function ComparisonTable({ data, isLoading }: ComparisonTableProps) {
   if (isLoading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Comparação Detalhada</CardTitle>
+          <CardTitle>Comparação detalhada</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-          </div>
+        <CardContent className="space-y-2">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
         </CardContent>
       </Card>
     )
   }
 
-  const metrics = [
-    { key: 'avg_score', label: 'Performance Score', format: (v: number) => v.toFixed(1), badge: true },
-    { key: 'avg_seo', label: 'SEO Score', format: (v: number) => v.toFixed(1), badge: true },
-    { key: 'avg_response_time', label: 'Response Time', format: (v: number) => `${v.toFixed(0)}ms`, badge: false },
-    { key: 'avg_fcp', label: 'First Contentful Paint', format: (v: number) => `${(v / 1000).toFixed(2)}s`, badge: false },
-    { key: 'avg_lcp', label: 'Largest Contentful Paint', format: (v: number) => `${(v / 1000).toFixed(2)}s`, badge: false },
-    { key: 'avg_si', label: 'Speed Index', format: (v: number) => `${(v / 1000).toFixed(2)}s`, badge: false },
-    { key: 'avg_tbt', label: 'Total Blocking Time', format: (v: number) => `${v.toFixed(0)}ms`, badge: false },
-    { key: 'avg_cls', label: 'Cumulative Layout Shift', format: (v: number) => v.toFixed(3), badge: false },
-  ] as const
-
-  const getMetricValue = (metric: AverageMetric | null, key: string): number => {
-    if (!metric) return 0
-    const value = metric[key as keyof AverageMetric]
-    if (typeof value === 'string') return parseFloat(value)
-    return value as number
-  }
-
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Comparação Detalhada</CardTitle>
+        <CardTitle>Comparação detalhada</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Todas as métricas dos canais selecionados
+          Média do período. O melhor valor de cada linha aparece em negrito.
         </p>
       </CardHeader>
       <CardContent>
@@ -82,38 +64,44 @@ export function ComparisonTable({ data, isLoading }: ComparisonTableProps) {
                 {data.map((item) => (
                   <TableHead key={item.channelId} className="text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <div
-                        className="h-2 w-2 rounded-full"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      <span>{item.channelName}</span>
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
+                      <span className="whitespace-nowrap">{item.channelName}</span>
                     </div>
                   </TableHead>
                 ))}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {metrics.map((metric) => (
-                <TableRow key={metric.key}>
-                  <TableCell className="font-medium">{metric.label}</TableCell>
-                  {data.map((item) => {
-                    const value = getMetricValue(item.latestMetric, metric.key)
-                    const formattedValue = metric.format(value)
+              {TABLE_METRICS.map((metric) => {
+                const values = data.map((item) => item.summary[metric])
+                let bestIndex = -1
+                values.forEach((value, index) => {
+                  if (value === null) return
+                  const best = bestIndex >= 0 ? values[bestIndex] : null
+                  if (best === null || isBetter(metric, value, best)) bestIndex = index
+                })
 
-                    return (
+                return (
+                  <TableRow key={metric}>
+                    <TableCell className="font-medium">
+                      <span className="inline-flex items-center gap-1">
+                        {METRICS[metric].label}
+                        <MetricInfo metric={metric} />
+                      </span>
+                    </TableCell>
+                    {data.map((item, index) => (
                       <TableCell key={item.channelId} className="text-right">
-                        {metric.badge ? (
-                          <Badge variant={getScoreBadgeVariant(value)}>
-                            {formattedValue}
-                          </Badge>
-                        ) : (
-                          <span className="font-medium">{formattedValue}</span>
-                        )}
+                        <RatingBadge
+                          rating={rateMetric(metric, item.summary[metric])}
+                          className={index === bestIndex && data.length > 1 ? 'font-bold ring-1 ring-current' : undefined}
+                        >
+                          {formatMetric(metric, item.summary[metric])}
+                        </RatingBadge>
                       </TableCell>
-                    )
-                  })}
-                </TableRow>
-              ))}
+                    ))}
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>

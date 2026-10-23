@@ -1,36 +1,35 @@
+import { Link } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Gauge, Search, Clock, TrendingUp, Activity, Zap } from 'lucide-react'
-import type { AverageMetric } from '@/types/api'
+import { RatingBadge } from '@/components/metrics/rating-badge'
+import { METRICS, formatMetric, rateMetric, type MetricKey, type MetricSummary } from '@/lib/metrics'
 
 interface ComparisonChannelCardProps {
+  channelId: string
+  /** Where the title links to: the channel page, the theme page or nowhere (providers) */
+  linkTo?: 'channel' | 'theme' | null
   channelName: string
-  latestMetric: AverageMetric | null
+  active: boolean
+  summary: MetricSummary
   color: string
   isLoading?: boolean
   isBest?: boolean
+  bestLabel: string
 }
 
-function getScoreColor(score: number): string {
-  if (score >= 90) return 'text-green-600'
-  if (score >= 70) return 'text-yellow-600'
-  return 'text-red-600'
-}
-
-function getScoreStatus(score: number): string {
-  if (score >= 90) return 'Excelente'
-  if (score >= 70) return 'Bom'
-  if (score >= 50) return 'Regular'
-  return 'Crítico'
-}
+const CARD_METRICS: MetricKey[] = ['score', 'lcp', 'cls', 'tbt', 'fcp', 'response_time', 'seo']
 
 export function ComparisonChannelCard({
+  channelId,
+  linkTo = 'channel',
   channelName,
-  latestMetric,
+  active,
+  summary,
   color,
   isLoading,
   isBest,
+  bestLabel,
 }: ComparisonChannelCardProps) {
   if (isLoading) {
     return (
@@ -38,123 +37,58 @@ export function ComparisonChannelCard({
         <CardHeader className="pb-3">
           <Skeleton className="h-5 w-32" />
         </CardHeader>
-        <CardContent className="space-y-3">
-          <Skeleton className="h-16" />
-          <Skeleton className="h-16" />
-          <Skeleton className="h-16" />
+        <CardContent className="space-y-2">
+          {CARD_METRICS.map((m) => (
+            <Skeleton key={m} className="h-8" />
+          ))}
         </CardContent>
       </Card>
     )
   }
 
-  const avgScore = latestMetric?.avg_score || 0
-  const avgSEO = latestMetric?.avg_seo || 0
-  const avgResponseTime = latestMetric
-    ? typeof latestMetric.avg_response_time === 'string'
-      ? parseFloat(latestMetric.avg_response_time)
-      : latestMetric.avg_response_time
-    : 0
-  const avgLCP = latestMetric?.avg_lcp || 0
-  const avgFCP = latestMetric?.avg_fcp || 0
-  const avgCLS = latestMetric?.avg_cls || 0
-
-  const scoreStatus = getScoreStatus(avgScore)
-  const scoreColor = getScoreColor(avgScore)
+  const hasData = summary.score !== null
 
   return (
-    <Card className="relative">
+    <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div
-              className="h-3 w-3 rounded-full"
-              style={{ backgroundColor: color }}
-            />
-            <CardTitle className="text-base">{channelName}</CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+            <CardTitle className="truncate text-base">
+              {linkTo === 'channel' ? (
+                <Link to="/channels/$channelId" params={{ channelId }} className="hover:underline">
+                  {channelName}
+                </Link>
+              ) : linkTo === 'theme' ? (
+                <Link to="/themes/$theme" params={{ theme: channelId }} className="hover:underline">
+                  {channelName}
+                </Link>
+              ) : (
+                channelName
+              )}
+            </CardTitle>
           </div>
-          {isBest && (
-            <Badge variant="default" className="bg-green-600">
-              Melhor
-            </Badge>
-          )}
+          {isBest && <Badge className="shrink-0 bg-good text-white hover:bg-good">Melhor {bestLabel}</Badge>}
         </div>
-        <Badge variant="secondary" className="mt-2 w-fit text-xs">
-          {scoreStatus}
-        </Badge>
+        {!active && linkTo === 'channel' && <p className="text-xs text-warn">Canal inativo: sem coletas recentes.</p>}
       </CardHeader>
-      <CardContent className="space-y-3">
-        {/* Performance Score */}
-        <div className="flex items-center justify-between rounded-lg border p-3">
-          <div className="flex items-center gap-2">
-            <Gauge className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Performance</span>
-          </div>
-          <span className={`text-lg font-bold ${scoreColor}`}>
-            {avgScore.toFixed(0)}
-            <span className="text-xs font-normal text-muted-foreground">
-              /100
-            </span>
-          </span>
-        </div>
-
-        {/* SEO Score */}
-        <div className="flex items-center justify-between rounded-lg border p-3">
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">SEO</span>
-          </div>
-          <span className={`text-lg font-bold ${getScoreColor(avgSEO)}`}>
-            {avgSEO.toFixed(0)}
-            <span className="text-xs font-normal text-muted-foreground">
-              /100
-            </span>
-          </span>
-        </div>
-
-        {/* Response Time */}
-        <div className="flex items-center justify-between rounded-lg border p-3">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Response Time</span>
-          </div>
-          <span className="text-lg font-bold">
-            {avgResponseTime.toFixed(0)}
-            <span className="text-xs font-normal text-muted-foreground">ms</span>
-          </span>
-        </div>
-
-        {/* LCP */}
-        <div className="flex items-center justify-between rounded-lg border p-3">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">LCP</span>
-          </div>
-          <span className="text-lg font-bold">
-            {(avgLCP / 1000).toFixed(2)}
-            <span className="text-xs font-normal text-muted-foreground">s</span>
-          </span>
-        </div>
-
-        {/* FCP */}
-        <div className="flex items-center justify-between rounded-lg border p-3">
-          <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">FCP</span>
-          </div>
-          <span className="text-lg font-bold">
-            {(avgFCP / 1000).toFixed(2)}
-            <span className="text-xs font-normal text-muted-foreground">s</span>
-          </span>
-        </div>
-
-        {/* CLS */}
-        <div className="flex items-center justify-between rounded-lg border p-3">
-          <div className="flex items-center gap-2">
-            <Activity className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">CLS</span>
-          </div>
-          <span className="text-lg font-bold">{avgCLS.toFixed(3)}</span>
-        </div>
+      <CardContent>
+        {!hasData ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Sem coletas neste período.</p>
+        ) : (
+          <dl className="divide-y">
+            {CARD_METRICS.map((metric) => (
+              <div key={metric} className="flex items-center justify-between gap-2 py-2 text-sm">
+                <dt className="text-muted-foreground">{METRICS[metric].shortLabel}</dt>
+                <dd>
+                  <RatingBadge rating={rateMetric(metric, summary[metric])}>
+                    {formatMetric(metric, summary[metric])}
+                  </RatingBadge>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
       </CardContent>
     </Card>
   )
