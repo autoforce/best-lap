@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --import tsx --test \"test/**/*.test.ts\""
   },
   "keywords": [],
   "author": "",
@@ -19,7 +19,8 @@
     "@best-lap/prettier": "workspace:*",
     "@best-lap/eslint-config": "workspace:*",
     "@best-lap/tsconfig": "workspace:*",
-    "tsup": "^8.3.5"
+    "tsup": "^8.3.5",
+    "tsx": "^4.20.3"
   },
   "eslintConfig": {
     "extends": [
