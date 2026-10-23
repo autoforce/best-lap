@@ -80,7 +80,7 @@ export async function importChannels(request: FastifyRequest, reply: FastifyRepl
       return reply.status(400).send({
         error: 'Bad Request',
         message: 'Invalid request body',
-        details: error.errors,
+        details: error.issues,
       })
     }
 

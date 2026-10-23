@@ -12,7 +12,7 @@ export const listProvidersDocs = {
           name: z.string().describe('Name of the provider'),
           website: z.string().describe('Website of the provider'),
           slug: z.string().describe('Unique slug for the provider'),
-          description: z.string().optional().describe('Description of the provider'),
+          description: z.string().nullable().optional().describe('Description of the provider'),
           created_at: z.date().describe('Creation date of the provider'),
           updated_at: z.date().optional().describe('Last update date of the provider')
         })).describe('List of providers')

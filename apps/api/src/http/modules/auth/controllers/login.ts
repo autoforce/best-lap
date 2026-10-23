@@ -3,15 +3,25 @@ import { loginBodySchema } from '../schemas/login'
 import { TypeormUsersRepository } from '@best-lap/infra'
 import { AuthenticateUserUseCase, InvalidCredentials } from '@best-lap/core'
 import { generateToken } from '../../../../lib/jwt'
+import { clearFailures, registerFailure, retryAfterSeconds } from '../../../../lib/login-attempts'
 
 export async function login(request: FastifyRequest, reply: FastifyReply) {
-  try {
-    const { email, password } = loginBodySchema.parse(request.body)
+  const { email, password } = loginBodySchema.parse(request.body)
 
+  const wait = retryAfterSeconds(request.ip, email)
+  if (wait > 0) {
+    return reply
+      .status(429)
+      .header('Retry-After', String(wait))
+      .send({ message: `Muitas tentativas. Tente novamente em ${Math.ceil(wait / 60)} minuto(s).` })
+  }
+
+  try {
     const usersRepository = new TypeormUsersRepository()
     const authenticateUserUseCase = new AuthenticateUserUseCase(usersRepository)
 
     const { user } = await authenticateUserUseCase.execute({ email, password })
+    clearFailures(request.ip, email)
 
     const token = generateToken({
       userId: user.id,
@@ -28,17 +38,12 @@ export async function login(request: FastifyRequest, reply: FastifyReply) {
       token,
     })
   } catch (error) {
-    console.error('Login error:', error)
-
     if (error instanceof InvalidCredentials) {
+      registerFailure(request.ip, email)
       return reply.status(401).send({ message: error.message })
     }
 
-    // Temporary: return detailed error for debugging
-    return reply.code(500).send({
-      error: 'Internal Server Error.',
-      details: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined
-    })
+    request.log.error(error, 'Login failed')
+    return reply.code(500).send({ error: 'Internal Server Error.' })
   }
 }

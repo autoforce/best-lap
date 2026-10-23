@@ -12,6 +12,13 @@ export const swaggerConfig = {
         email: 'desenvolvimento@autoforce.com.br'
       }
     },
+    components: {
+      securitySchemes: {
+        bearerAuth: { type: 'http' as const, scheme: 'bearer', bearerFormat: 'JWT' },
+        syncApiKey: { type: 'apiKey' as const, in: 'header', name: 'x-api-key' },
+      },
+    },
+    security: [{ bearerAuth: [] }],
     tags: [
       {
         name: 'auth',
@@ -36,29 +43,25 @@ export const swaggerConfig = {
       {
         name: 'providers',
         description: 'Provider management endpoints'
+      },
+      {
+        name: 'sync',
+        description: 'Machine-to-machine channel synchronization (x-api-key)'
+      },
+      {
+        name: 'insights',
+        description: 'Attention items, opportunities and per-page metrics'
       }
     ],
     servers: [
       {
-        url: 'http://ec2-75-101-196-198.compute-1.amazonaws.com:3333',
-        description: 'EC2 deployment server (HTTP)'
-      },
-      {
-        url: 'http://75.101.196.198:3333',
-        description: 'EC2 deployment server (IP)'
+        url: '/',
+        description: 'Este servidor'
       },
       {
         url: `http://localhost:${env.API_PORT}`,
-        description: 'Local development server'
+        description: 'Desenvolvimento local'
       },
-      {
-        url: 'https://api-staging.autoforce.com.br',
-        description: 'Staging environment (work in progress)'
-      },
-      {
-        url: 'https://api.autoforce.com.br',
-        description: 'Production environment (work in progress)'
-      }
     ],
   },
   transform: jsonSchemaTransform,

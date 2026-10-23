@@ -64,33 +64,14 @@ export const importChannelsDocs = {
   tags: ['sync'],
   body: importRequestSchema,
   response: {
-    200: {
-      description: 'Import completed successfully',
-      content: {
-        'application/json': {
-          schema: successResponseSchema,
-        },
-      },
-    },
-    400: {
-      description: 'Bad Request - Invalid request body',
-      content: {
-        'application/json': {
-          schema: z.object({
-            error: z.string(),
-            message: z.string(),
-            details: z.array(z.any()),
-          }),
-        },
-      },
-    },
-    500: {
-      description: 'Internal Server Error - Import failed',
-      content: {
-        'application/json': {
-          schema: errorResponseSchema,
-        },
-      },
-    },
+    200: successResponseSchema.describe('Import completed successfully'),
+    400: z
+      .object({
+        error: z.string(),
+        message: z.string(),
+        details: z.array(z.any()),
+      })
+      .describe('Bad Request - Invalid request body'),
+    500: errorResponseSchema.describe('Internal Server Error - Import failed'),
   },
 }
