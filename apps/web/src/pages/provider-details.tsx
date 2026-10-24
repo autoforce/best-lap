@@ -41,7 +41,7 @@ import { ChannelsTable, type ChannelRow } from '@/components/channels/channels-t
 import { ChannelDialog } from '@/components/channels/channel-dialog'
 import { BulkActionsToolbar } from '@/components/channels/bulk-actions-toolbar'
 import { ProviderDialog } from '@/components/providers/provider-dialog'
-import { AttentionPanel } from '@/components/insights/attention-panel'
+import { AttentionSummary } from '@/components/insights/attention-panel'
 import { CommonOpportunitiesCard } from '@/components/insights/common-opportunities-card'
 import { PeriodSelector } from '@/components/metrics/period-selector'
 import { MetricKpiCard } from '@/components/metrics/metric-kpi-card'
@@ -209,7 +209,7 @@ export function ProviderDetailsPage() {
   }
 
   const activeCount = channels.filter((c) => c.active).length
-  const pagesCount = channels.reduce((sum, c) => sum + (c.pages?.length ?? 0), 0)
+  const referenceCount = channels.filter((c) => c.is_reference).length
   const comparedTo = previousPeriodLabel(period)
 
   return (
@@ -219,6 +219,7 @@ export function ProviderDetailsPage() {
       breadcrumbs={[{ label: 'Provedores', href: '/providers' }, { label: provider.name }]}
       action={
         <>
+          <AttentionSummary providerId={provider.id} />
           <CopyLinkButton />
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Pencil />
@@ -265,8 +266,8 @@ export function ProviderDetailsPage() {
                 <dd className="text-2xl font-bold">{isLoadingChannels ? '…' : themes.length}</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Páginas</dt>
-                <dd className="text-2xl font-bold">{isLoadingChannels ? '…' : pagesCount}</dd>
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">De referência</dt>
+                <dd className="text-2xl font-bold">{isLoadingChannels ? '…' : referenceCount}</dd>
               </div>
             </dl>
           </CardContent>
@@ -290,8 +291,6 @@ export function ProviderDetailsPage() {
                 <PeriodSelector value={period} onChange={setPeriod} />
               </CardContent>
             </Card>
-
-            <AttentionPanel providerId={provider.id} />
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {(['score', 'lcp', 'cls', 'seo'] as MetricKey[]).map((metric) => (

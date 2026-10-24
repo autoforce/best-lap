@@ -34,7 +34,7 @@ export function WelcomeBanner() {
         <p className="font-medium">Primeira vez por aqui?</p>
         <p className="text-muted-foreground">
           Cada número vem com uma faixa do Google (Bom, Precisa melhorar, Ruim) e com a variação contra o período
-          anterior. Comece pelo “Precisa de atenção” e abra um canal para ver o que corrigir.
+          anterior. O botão “Alertas”, no topo, lista o que piorou; abra um canal para ver o que corrigir.
         </p>
         <Link to="/guide" className="inline-block font-medium text-primary hover:underline">
           Ler o guia de 3 minutos →
