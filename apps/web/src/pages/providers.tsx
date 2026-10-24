@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { Link } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { AppShell } from '@/components/layout/app-shell'
 import { Button } from '@/components/ui/button'
@@ -203,7 +204,9 @@ export function ProvidersPage() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          {row.provider.name}
+                          <Link to="/providers/$providerId" params={{ providerId: row.provider.id }} className="hover:underline">
+                            {row.provider.name}
+                          </Link>
                           {row.provider.id === bestId && (
                             <span className="ml-2 rounded-full bg-good-soft px-2 py-0.5 text-xs font-semibold text-good">
                               Melhor {METRICS[metricKey].shortLabel}

@@ -26,7 +26,7 @@ import { PeriodSelector } from '@/components/metrics/period-selector'
 import { MetricKpiCard } from '@/components/metrics/metric-kpi-card'
 import { MetricTrendChart } from '@/components/metrics/metric-trend-chart'
 import { MetricSummaryList } from '@/components/metrics/metric-summary-list'
-import { AttentionPanel } from '@/components/insights/attention-panel'
+import { AttentionSummary } from '@/components/insights/attention-panel'
 import { CommonOpportunitiesCard } from '@/components/insights/common-opportunities-card'
 import { WelcomeBanner } from '@/components/onboarding/welcome-banner'
 import { METRICS, summarize, type MetricKey } from '@/lib/metrics'
@@ -79,6 +79,7 @@ export function DashboardPage() {
       description="Saúde de performance dos sites monitorados"
       action={
         <>
+          <AttentionSummary providerId={providerId === 'all' ? undefined : providerId} />
           <CopyLinkButton />
           <TriggerCollectionDialog
             scope="all"
@@ -122,8 +123,6 @@ export function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-
-        <AttentionPanel providerId={providerId === 'all' ? undefined : providerId} />
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {(['score', 'lcp', 'cls', 'seo'] as MetricKey[]).map((metric) => (

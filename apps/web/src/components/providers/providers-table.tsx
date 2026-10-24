@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import {
   flexRender,
@@ -88,7 +89,13 @@ export function ProvidersTable({ data, onEdit }: ProvidersTableProps) {
         )
       },
       cell: ({ row }) => (
-        <div className="font-medium">{row.getValue('name')}</div>
+        <Link
+          to="/providers/$providerId"
+          params={{ providerId: row.original.id }}
+          className="font-medium hover:underline"
+        >
+          {row.getValue('name')}
+        </Link>
       ),
     },
     {

@@ -9,6 +9,7 @@ import {
   BookOpen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Logo } from '@/components/brand/logo'
 
 const navigation = [
   {
@@ -67,7 +68,9 @@ export function Sidebar({ className, onNavigate }: SidebarProps) {
   return (
     <div className={cn('flex h-full w-64 flex-col border-r bg-card', className)}>
       <div className="flex h-16 items-center px-6 border-b">
-        <h1 className="text-xl font-bold text-primary">Best Lap</h1>
+        <Link to="/" onClick={onNavigate} aria-label="Best Lap, ir para o Dashboard">
+          <Logo />
+        </Link>
       </div>
       <nav className="flex-1 space-y-1 p-4" aria-label="Navegação principal">
         {navigation.map((item) => {

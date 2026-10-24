@@ -13,6 +13,7 @@ import { ComparePage } from '@/pages/compare'
 import { ThemesPage } from '@/pages/themes'
 import { ThemeDetailsPage } from '@/pages/theme-details'
 import { ProvidersPage } from '@/pages/providers'
+import { ProviderDetailsPage } from '@/pages/provider-details'
 import { LoginPage } from '@/pages/login'
 import { UsersPage } from '@/pages/users'
 import { GuidePage } from '@/pages/guide'
@@ -142,6 +143,17 @@ const providersRoute = createRoute({
   },
 })
 
+const providerDetailsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/providers/$providerId',
+  component: ProviderDetailsPage,
+  beforeLoad: () => {
+    if (!isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+})
+
 // Users route (protected)
 const usersRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -178,6 +190,7 @@ const routeTree = rootRoute.addChildren([
   themesRoute,
   themeDetailsRoute,
   providersRoute,
+  providerDetailsRoute,
   usersRoute,
   guideRoute,
 ])
