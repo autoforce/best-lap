@@ -1,7 +1,16 @@
 import { FastifyInstance } from 'fastify'
 import { ZodTypeProvider } from 'fastify-type-provider-zod'
-import { attentionDocs, channelInsightsDocs, channelPagesMetricsDocs, opportunitiesDocs } from './docs'
 import {
+  attentionDocs,
+  channelInsightsDocs,
+  channelPagesMetricsDocs,
+  groupDiagnosisDocs,
+  opportunitiesDocs,
+  pageDiagnosisDocs,
+} from './docs'
+import {
+  getGroupDiagnosis,
+  getPageDiagnosis,
   listAttentionItems,
   listChannelInsights,
   listChannelPagesMetrics,
@@ -16,4 +25,6 @@ export async function insightsRoutes(server: FastifyInstance) {
   app.get('/opportunities', opportunitiesDocs, listCommonOpportunities)
   app.get('/channels/:channel_id', channelInsightsDocs, listChannelInsights)
   app.get('/channels/:channel_id/pages/:period', channelPagesMetricsDocs, listChannelPagesMetrics)
+  app.get('/pages/:page_id/diagnosis', pageDiagnosisDocs, getPageDiagnosis)
+  app.get('/diagnosis', groupDiagnosisDocs, getGroupDiagnosis)
 }

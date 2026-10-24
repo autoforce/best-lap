@@ -2,9 +2,12 @@ import {
   MetricEntityUnchecked,
   MetricsRepository,
   PageInsightsRepository,
+  PageSnapshotsRepository,
   PerformanceResult,
   extractFieldData,
   extractLighthouseFindings,
+  extractPageSnapshot,
+  localDay,
 } from '@best-lap/core';
 import { env } from '@best-lap/env';
 import { setUpQuery } from '../utils/set-up-query';
@@ -19,6 +22,7 @@ export class CollectPageMetricsService {
   constructor(
     private metricsRepository: MetricsRepository,
     private pageInsightsRepository: PageInsightsRepository,
+    private pageSnapshotsRepository: PageSnapshotsRepository,
   ) { }
 
   /**
@@ -71,6 +75,18 @@ export class CollectPageMetricsService {
       })
     } catch (error) {
       console.error(`Could not store Lighthouse findings for page ${pageId}:`, error)
+    }
+
+    // One compact snapshot per page and day (the latest collection of the day wins)
+    try {
+      await this.pageSnapshotsRepository.upsert({
+        page_id: pageId,
+        day: localDay(collectedAt, env.CRON_TIMEZONE),
+        collected_at: collectedAt,
+        ...extractPageSnapshot(responseData.lighthouseResult),
+      })
+    } catch (error) {
+      console.error(`Could not store the page snapshot for page ${pageId}:`, error)
     }
   }
 }

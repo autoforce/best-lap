@@ -5,3 +5,5 @@ export * from './filter-by-metric';
 export * from './parse-utc-date';
 export * from './extract-lighthouse-insights';
 export * from './aggregate-opportunities';
+export * from './extract-page-snapshot';
+export * from './page-diagnosis';

@@ -53,3 +53,42 @@ export const channelPagesMetricsDocs = {
     },
   },
 }
+
+export const pageDiagnosisDocs = {
+  schema: {
+    description:
+      'Diagnosis of one page from its daily snapshots: rule-based recommendations, what changed in the last week and the daily weight',
+    tags: ['insights'],
+    params: z.object({ page_id: z.uuid() }),
+    response: {
+      200: z.object({
+        current: looseObject.nullable(),
+        previous: looseObject.nullable(),
+        changes: z.array(looseObject),
+        recommendations: z.array(looseObject),
+        history: z.array(looseObject),
+      }),
+      500: errorSchema,
+    },
+  },
+}
+
+export const groupDiagnosisDocs = {
+  schema: {
+    description:
+      'Files, third parties and LCP patterns shared by the active sites of a theme or provider (latest snapshot of each home), with rule-based recommendations',
+    tags: ['insights'],
+    querystring: z.object({ theme: z.string().optional(), provider_id: z.uuid().optional() }),
+    response: {
+      200: z.object({
+        channels_with_data: z.number(),
+        resources: z.array(looseObject),
+        third_parties: z.array(looseObject),
+        lcp: looseObject,
+        weight: looseObject,
+        recommendations: z.array(looseObject),
+      }),
+      500: errorSchema,
+    },
+  },
+}

@@ -23,6 +23,7 @@ import { AddSourceToChannels1792713600000 } from './migration/1792713600000-AddS
 import { AddChannelAndPageIndexes1792713700000 } from './migration/1792713700000-AddChannelAndPageIndexes';
 import { AlignAggregateRefreshWithRetention1792713800000 } from './migration/1792713800000-AlignAggregateRefreshWithRetention';
 import { CreatePageInsightsTable1792713900000 } from './migration/1792713900000-CreatePageInsightsTable';
+import { CreatePageSnapshotsTable1792714000000 } from './migration/1792714000000-CreatePageSnapshotsTable';
 
 export const dataSource = new DataSource({
   type: 'postgres',
@@ -55,5 +56,6 @@ export const dataSource = new DataSource({
     AddChannelAndPageIndexes1792713700000,
     AlignAggregateRefreshWithRetention1792713800000,
     CreatePageInsightsTable1792713900000,
+    CreatePageSnapshotsTable1792714000000,
   ]
 });
