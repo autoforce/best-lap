@@ -44,8 +44,9 @@ export function GuidePage() {
           <CardContent>
             <ol className="list-decimal space-y-2 pl-5 text-sm">
               <li>
-                No <Link to="/" className="text-primary hover:underline">Dashboard</Link>, leia primeiro o bloco{' '}
-                <strong>Precisa de atenção</strong>: quedas de score, métricas que passaram para Ruim e sites sem coleta.
+                No <Link to="/" className="text-primary hover:underline">Dashboard</Link>, veja primeiro os números
+                do período. O botão <strong>Alertas</strong>, no topo, lista quedas de score, métricas que passaram para
+                Ruim e sites sem coleta.
               </li>
               <li>
                 Abra o canal. A aba <strong>Performance</strong> mostra a evolução; a aba <strong>O que corrigir</strong>{' '}

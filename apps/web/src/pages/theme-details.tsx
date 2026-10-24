@@ -236,7 +236,9 @@ export function ThemeDetailsPage() {
                               </TableCell>
                               <TableCell>
                                 {channel.provider ? (
-                                  <Badge variant="secondary">{channel.provider.name}</Badge>
+                                  <Link to="/providers/$providerId" params={{ providerId: channel.provider.id }}>
+                                    <Badge variant="secondary" className="hover:bg-secondary/60">{channel.provider.name}</Badge>
+                                  </Link>
                                 ) : (
                                   <span className="text-muted-foreground">—</span>
                                 )}
