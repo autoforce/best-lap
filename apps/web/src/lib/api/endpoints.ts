@@ -15,6 +15,8 @@ import type {
   CollectionStatus,
   AttentionItem,
   CommonOpportunity,
+  GroupDiagnosis,
+  PageDiagnosis,
   PageInsights,
   PageMetricGrouped,
   Period,
@@ -153,6 +155,13 @@ export const insightsApi = {
 
   getChannelPagesMetrics: (channelId: string, period: Period, params?: DateRangeParams) =>
     api.get<{ metrics: PageMetricGrouped[] }>(`/insights/channels/${channelId}/pages/${period}`, { params }),
+
+  getPageDiagnosis: (pageId: string) => api.get<PageDiagnosis>(`/insights/pages/${pageId}/diagnosis`),
+
+  getGroupDiagnosis: (filter: { theme?: string; providerId?: string } = {}) =>
+    api.get<GroupDiagnosis>('/insights/diagnosis', {
+      params: { theme: filter.theme, provider_id: filter.providerId },
+    }),
 }
 
 // Auth endpoints

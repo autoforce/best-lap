@@ -25,3 +25,18 @@ export function useChannelInsights(channelId: string | undefined) {
     enabled: !!channelId,
   })
 }
+
+export function usePageDiagnosis(pageId: string | undefined) {
+  return useQuery({
+    queryKey: [...INSIGHTS_KEY, 'diagnosis', 'page', pageId],
+    queryFn: async () => (await insightsApi.getPageDiagnosis(pageId!)).data,
+    enabled: !!pageId,
+  })
+}
+
+export function useGroupDiagnosis(filter: { theme?: string; providerId?: string }) {
+  return useQuery({
+    queryKey: [...INSIGHTS_KEY, 'diagnosis', 'group', filter.theme ?? 'all', filter.providerId ?? 'all'],
+    queryFn: async () => (await insightsApi.getGroupDiagnosis(filter)).data,
+  })
+}
