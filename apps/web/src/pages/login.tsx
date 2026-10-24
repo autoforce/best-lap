@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 import { useEffect } from 'react'
+import { Logo } from '@/components/brand/logo'
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -67,7 +68,9 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-3xl font-bold">Best Lap</CardTitle>
+          <CardTitle className="flex justify-center pb-2">
+            <Logo size="lg" />
+          </CardTitle>
           <CardDescription>
             Entre com suas credenciais para acessar o dashboard
           </CardDescription>

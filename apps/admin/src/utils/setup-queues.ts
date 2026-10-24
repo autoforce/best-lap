@@ -3,6 +3,7 @@ import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { FastifyAdapter } from "@bull-board/fastify";
 import { Queue } from "bullmq";
 import Redis from "ioredis";
+import { LOGO_DATA_URI } from "./brand";
 
 const KNOWN_QUEUES = ["reference", "client"];
 
@@ -23,6 +24,14 @@ export async function setupQueues(connection: Redis, serverAdapter: FastifyAdapt
     createBullBoard({
       queues,
       serverAdapter,
+      options: {
+        uiConfig: {
+          boardTitle: 'Best Lap · Filas',
+          boardLogo: { path: LOGO_DATA_URI, width: 28, height: 28 },
+          favIcon: { default: LOGO_DATA_URI, alternative: LOGO_DATA_URI },
+          locale: { lng: 'pt-BR' },
+        },
+      },
     });
 
     return queues;
