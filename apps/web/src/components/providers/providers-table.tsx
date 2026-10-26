@@ -18,6 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
+import { externalUrl } from '@/lib/utils'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -110,7 +111,7 @@ export function ProvidersTable({ data, onEdit }: ProvidersTableProps) {
       header: 'Website',
       cell: ({ row }) => (
         <a
-          href={row.getValue('website')}
+          href={externalUrl(row.getValue('website'))}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1 text-blue-600 hover:underline"

@@ -21,6 +21,7 @@ import {
 } from '@/hooks/use-channels'
 import { useToast } from '@/hooks/use-toast'
 import type { Channel } from '@/types/api'
+import { externalUrl } from '@/lib/utils'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -151,7 +152,7 @@ export function ChannelInfoTab({ channel, onEdit }: ChannelInfoTabProps) {
                   Domínio
                 </p>
                 <a
-                  href={channel.domain}
+                  href={externalUrl(channel.domain)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-1 flex items-center gap-1 text-primary hover:underline"
@@ -165,7 +166,15 @@ export function ChannelInfoTab({ channel, onEdit }: ChannelInfoTabProps) {
                 <p className="text-sm font-medium text-muted-foreground">
                   Link Interno
                 </p>
-                <p className="mt-1">{channel.internal_link}</p>
+                <a
+                  href={externalUrl(channel.internal_link)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 flex items-center gap-1 break-all text-primary hover:underline"
+                >
+                  {channel.internal_link}
+                  <ExternalLink className="h-3 w-3 shrink-0" />
+                </a>
               </div>
 
               <div>
@@ -199,7 +208,7 @@ export function ChannelInfoTab({ channel, onEdit }: ChannelInfoTabProps) {
                     <p className="font-medium">{channel.provider.name}</p>
                     {channel.provider.website && (
                       <a
-                        href={channel.provider.website}
+                        href={externalUrl(channel.provider.website)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-1 text-sm text-primary hover:underline"
