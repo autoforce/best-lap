@@ -57,6 +57,7 @@ import { buildChannelSnapshots } from '@/lib/channel-performance'
 import { downloadCsv } from '@/lib/csv'
 import { METRICS, formatMetric, rateMetric, summarize, type MetricKey } from '@/lib/metrics'
 import { describePeriod, previousPeriodLabel } from '@/lib/period'
+import { externalUrl } from '@/lib/utils'
 import type { Channel } from '@/types/api'
 
 const TABS = ['overview', 'channels', 'themes', 'fix'] as const
@@ -238,7 +239,7 @@ export function ProviderDetailsPage() {
           <CardContent className="grid gap-6 p-4 md:grid-cols-[minmax(0,1fr)_auto]">
             <div className="min-w-0 space-y-2">
               <a
-                href={provider.website}
+                href={externalUrl(provider.website)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
