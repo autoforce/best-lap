@@ -245,3 +245,136 @@ export interface PageMetricGrouped extends AverageMetric {
   page_name: string
   page_path: string
 }
+
+// Daily page snapshots and the rule-based diagnosis built from them
+
+export interface SnapshotThirdParty {
+  entity: string
+  category?: string
+  /** The site itself or the Autoforce platform */
+  own: boolean
+  bytes: number
+  main_thread_ms: number
+  requests: number
+}
+
+export interface SnapshotResource {
+  audit: string
+  key: string
+  entity?: string
+  own: boolean
+  wasted_ms?: number
+  wasted_bytes?: number
+  total_bytes?: number
+  count?: number
+}
+
+export interface SnapshotLcp {
+  selector?: string
+  label?: string
+  snippet?: string
+  is_image?: boolean
+  ttfb_ms?: number
+  load_delay_ms?: number
+  load_duration_ms?: number
+  render_delay_ms?: number
+  lazy_loaded?: boolean
+  priority_hinted?: boolean
+  discoverable?: boolean
+}
+
+export interface PageSnapshot {
+  page_id: string
+  day: string
+  collected_at: string
+  total_bytes?: number
+  request_count?: number
+  bytes_by_type: Record<string, number>
+  third_parties: SnapshotThirdParty[]
+  resources: SnapshotResource[]
+  lcp: SnapshotLcp | null
+  checks: {
+    redirect_ms?: number
+    server_response_ms?: number
+    compression?: boolean
+    dom_elements?: number
+    unsized_images?: number
+  }
+}
+
+export type FixOwner = 'template' | 'tags' | 'content' | 'server'
+
+export interface Recommendation {
+  id: string
+  owner: FixOwner
+  impact: 'high' | 'medium' | 'low'
+  title: string
+  detail: string
+  evidence: string[]
+}
+
+export interface SnapshotChange {
+  kind: string
+  direction: 'worse' | 'better' | 'neutral'
+  title: string
+  detail?: string
+}
+
+export interface PageWeightPoint {
+  day: string
+  total_bytes: number | null
+  request_count: number | null
+  bytes_by_type: Record<string, number>
+  third_party_ms: number
+}
+
+export interface PageDiagnosis {
+  current: PageSnapshot | null
+  previous: { day: string; collected_at: string } | null
+  changes: SnapshotChange[]
+  recommendations: Recommendation[]
+  history: PageWeightPoint[]
+}
+
+export interface GroupResource {
+  key: string
+  entity?: string
+  own: boolean
+  audits: string[]
+  channels: number
+  avg_wasted_ms?: number
+  avg_wasted_bytes?: number
+  avg_total_bytes?: number
+  top_channels: Array<{ id: string; name: string }>
+}
+
+export interface GroupThirdParty {
+  entity: string
+  category?: string
+  channels: number
+  avg_main_thread_ms: number
+  avg_bytes: number
+}
+
+export interface GroupDiagnosis {
+  channels_with_data: number
+  resources: GroupResource[]
+  third_parties: GroupThirdParty[]
+  lcp: {
+    image: number
+    lazy_loaded: number
+    missing_priority_hint: number
+    not_discoverable: number
+    avg_ttfb_ms?: number
+    avg_load_delay_ms?: number
+    avg_load_duration_ms?: number
+    avg_render_delay_ms?: number
+  }
+  weight: {
+    avg_total_bytes?: number
+    avg_requests?: number
+    avg_bytes_by_type: Record<string, number>
+    avg_third_party_ms?: number
+  }
+  recommendations: Recommendation[]
+}

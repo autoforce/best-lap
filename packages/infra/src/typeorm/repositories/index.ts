@@ -4,3 +4,4 @@ export * from './typeorm-pages-repository';
 export * from './typeorm-providers-repository';
 export * from './typeorm-users-repository';
 export * from './typeorm-page-insights-repository';
+export * from './typeorm-page-snapshots-repository';

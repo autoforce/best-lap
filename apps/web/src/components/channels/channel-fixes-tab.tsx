@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { FindingsList } from '@/components/insights/findings-list'
+import { PageDiagnosisSection } from '@/components/insights/page-diagnosis'
 import { RatingBadge } from '@/components/metrics/rating-badge'
 import { useChannelInsights } from '@/hooks/use-insights'
 import { useSearchState } from '@/hooks/use-search-state'
@@ -127,11 +128,13 @@ export function ChannelFixesTab({ channel }: { channel: Channel }) {
         </p>
       </div>
 
+      <PageDiagnosisSection pageId={selected.page_id} />
+
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>O que corrigir primeiro</CardTitle>
+              <CardTitle>Oportunidades do Lighthouse</CardTitle>
               <p className="text-sm text-muted-foreground">
                 Ordenado pela economia estimada.
                 {totalSavings > 0 &&

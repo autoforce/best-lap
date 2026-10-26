@@ -43,6 +43,7 @@ import { BulkActionsToolbar } from '@/components/channels/bulk-actions-toolbar'
 import { ProviderDialog } from '@/components/providers/provider-dialog'
 import { AttentionSummary } from '@/components/insights/attention-panel'
 import { CommonOpportunitiesCard } from '@/components/insights/common-opportunities-card'
+import { GroupDiagnosisSection } from '@/components/insights/group-diagnosis'
 import { PeriodSelector } from '@/components/metrics/period-selector'
 import { MetricKpiCard } from '@/components/metrics/metric-kpi-card'
 import { MetricTrendChart } from '@/components/metrics/metric-trend-chart'
@@ -483,7 +484,8 @@ export function ProviderDetailsPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="fix" className="mt-6">
+          <TabsContent value="fix" className="mt-6 space-y-6">
+            <GroupDiagnosisSection providerId={provider.id} scopeLabel="do provedor" />
             <CommonOpportunitiesCard
               providerId={provider.id}
               title={`Problemas mais comuns nos sites de ${provider.name}`}

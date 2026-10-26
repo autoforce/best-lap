@@ -22,6 +22,7 @@ import { RatingBadge } from '@/components/metrics/rating-badge'
 import { DeltaBadge } from '@/components/metrics/delta-badge'
 import { Sparkline } from '@/components/metrics/sparkline'
 import { CommonOpportunitiesCard } from '@/components/insights/common-opportunities-card'
+import { GroupDiagnosisSection } from '@/components/insights/group-diagnosis'
 import { useChannelsByTheme } from '@/hooks/use-channels'
 import { useAllChannelsMetricsGrouped, useThemeMetrics } from '@/hooks/use-metrics'
 import { usePeriodSearch, useSearchState } from '@/hooks/use-search-state'
@@ -157,6 +158,8 @@ export function ThemeDetailsPage() {
                 </CardContent>
               </Card>
             </div>
+
+            <GroupDiagnosisSection theme={theme} scopeLabel="do tema" />
 
             <CommonOpportunitiesCard
               theme={theme}
